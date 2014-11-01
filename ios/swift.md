@@ -1,20 +1,27 @@
 Swift is an Object oriented language.
 
-### Application Lifecycle
-### import
-### Syntax
-### logging
-### Number
-### String
-### Variable
-### Array
-### Dictionary
-### Tuple
-### Operators
-### Optionals
-### Enumeration
-### Loop
-### if && switch
+- [Application Lifecycle](#application-lifecycle)
+- [import](#import)
+- [Syntax](#syntax)
+- [logging](#logging)
+- [Number](#number)
+- [String](#string)
+- [Variable](#variable)
+- [Array](#arrray)
+- [Dictionary](#dictionary)
+- [Tuple](#tuple)
+- [Operators](#operators)
+- [Optionals](#optionals)
+- [Enumeration](#enumeration)
+- [Loop](#loop)
+- [if and switch](#if-and-switch)
+- [function](#function)
+- [Class and Struct](#class-and-struct)
+- [Protocol](#protocol)
+- [Closure](#closure)
+- [AnyObject and Any](#anyobject-and-any)
+- [Extension](#extension)
+- [Generic](#generic)
 
 ### Application Lifecycle
 
@@ -458,7 +465,7 @@ Tuple items are not all required to have the same type, do not know what type ea
     iterate(["zero":0,"one":1]) { println("\($0) => \($1)") }  // log: [0] => (zero, 0), [1] => (one, 1)
 ```
 
-### if && switch
+### if and switch
 
 `if` parenthese is optional, but curly braces is required around each code block
 
@@ -601,7 +608,7 @@ Function could have the same name as long as they take different parameters. If 
 `@IBAction func` indicate this is a pointer, this function is referenced or connected to the storyboard element.
 
 
-### Classes and Structs
+### Class and Struct
 
 class is used for subclass, or super class/child class pattern, struct is not. Both can create an instance out of them.
 
@@ -1042,7 +1049,7 @@ Alway variable, `lazy var` is required, could not be `lazy let`
     }
 ```
 
-### Protocols
+### Protocol
 
 Way to standardize the behavior of across class without worrying about Inherience, any formal relationship.
 
@@ -1215,7 +1222,7 @@ They are existed because mapping to Objective-C id. You should use `is`, `as`, `
     var someObject: AnyObject = "this is a message"
 ```
 
-### Extensions
+### Extension
 
 Allow to add new methods or properties to the existing type without sub class the current type.
 These Extensions can add property, method, initializer to the existing type
@@ -1249,7 +1256,7 @@ can be added to classes, structures and enumerations
     message.reverseWords()
 ```
 
-### Generics
+### Generic
 
 Type: in Swift, every variable is strongly typed, compile-time checking, overflow checking, etc. AnyObject and Any type give us dynamic, can be exchanged to other type.
 
