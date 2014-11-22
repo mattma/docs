@@ -1390,3 +1390,29 @@ String intropolation
     // String into Double
     Double(("3.9585" as NSString).doubleValue)  //3.9585
 ```
+
+### Importants
+
+repo
+https://github.com/raywenderlich/swift-style-guide
+https://github.com/ochococo/Design-Patterns-In-Swift
+
+Links
+
+http://www.bignerdranch.com/blog/categories/ios.html
+http://www.appcoda.com/tag/xcode-6/
+http://www.appcoda.com/ios-programming-course/
+http://code.tutsplus.com/categories/ios-sdk
+http://www.raywenderlich.com/tutorials
+
+https://developer.apple.com/library/ios/documentation/UserExperience/Conceptual/AutolayoutPG/WorkingwithConstraints/WorkingwithConstraints.html
+
+Google design spec
+http://www.google.com/design/
+
+Tutorial
+2. In-App Purchasing with iOS
+http://www.lynda.com/iOS-tutorials/App-Purchasing-iOS/171727-2.html
+
+5. Distributing iOS Applications Through the App Store
+http://www.lynda.com/iOS-tutorials/Distributing-iOS-Applications-Through-App-Store/157434-2.html
