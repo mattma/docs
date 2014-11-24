@@ -1,5 +1,9 @@
 Note from [Understanding ES6](https://leanpub.com/understandinges6/read/#leanpub-auto-objects), currently read through `Object`, check back until author completes the object section.
 
+# ES6
+
+ECMAScript Language Specfication, Edition 6
+
 ## Resources:
 
 1. [ES6 Compatibility table](http://kangax.github.io/compat-table/es6/)
