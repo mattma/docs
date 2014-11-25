@@ -64,6 +64,10 @@ logify({
 }); /* { "firstName": "matt", "lastName": "ma" } */
 
 
+let arrowFn = words => words.map( (w) => w.length );
+console.log( arrowFn(['sea', 'beach', 'do']) ); // [3, 5, 2]
+
+
 // Default Params
 function defaultParam(name = "matt") {
   console.log(`hello ${name}`);
@@ -114,6 +118,13 @@ console.log( Object.is(NaN, NaN) );  // true
 console.log( Object.is(0, -0) );  // false
 console.log( Object.is(-0, -0) );  // true
 
+// Object Shorthand
+let objShort = {
+  test() {
+    return "shorthand test"
+  }
+};
+console.log( objShort.test() );
 
 // Object Literal Shorthand
 let literal1 = "matt";
@@ -124,7 +135,6 @@ function literalShortHand(options){
 literalShortHand({ literal1, literal2, literal3: 23 });
 // { literal1 = "matt", literal2 = "ma", literal3 = 23 }
 
-
 // Object literal function shorthand
 let obj = {
   name: "matt",
@@ -133,12 +143,30 @@ let obj = {
   }
 };
 
+// Template Literal
+let uppercase = function(strings) {
+  let result = "";
+  for( var i=0; i < strings.length; i++) {
+    result += strings[i];
+  }
+  return result.toUpperCase();
+};
+let x = 1;
+let y = 3;
+let xyresult = uppercase(`${x} + ${y} is ${x+y}`);
+console.log('result: ', xyresult);  // 1 + 3 IS 4
+
+// Template Literal with multiple lines with no escape
+let multiline = `this is a
+  multiple lines
+  string test with NO excaping!`
+console.log('multiline: ', multiline);
 
 // Object.assign
 let obj1 = "matt",
   obj2 = { obj2: "sam"},
   obj3 = { obj3: "aaron"},
-  objs = Object.assign({obj1}, obj2, obj3);
+  objs = Object.assign({obj1}, obj2, obj3); // like _.extend
 console.log( JSON.stringify(objs) ); // {"obj1":"matt","obj2":"sam","obj3":"aaron"}
 
 /*
@@ -168,7 +196,7 @@ let arrFill2 = [ "matt", "sam", "aaron"];
 arrFill2.fill("unknown", -1, arrFill.length);
 console.log( arrFill2 ); // [ 'matt', 'sam', 'unknown' ]
 
-// Array.from()  // like Array.map, dalways return an Array
+// Array.from()  // like Array.map, always return an Array
 // syntax: Array.from(arrayLike[, mapFn[, thisArg]])
 function arrFrom() {
   return Array.from(arguments);
@@ -189,6 +217,20 @@ console.log( Array.from(arrInd, n => n.name ) ); // [ 'matt', 'sam', 'aaron' ]
 
 // Generate a sequence of numbers
 console.log( Array.from({length: 5}, (v, k) => k) ); // [ 0, 1, 2, 3, 4 ]
+
+
+// Array.map, Array.filter
+let arrMap = [{name: "matt"}, {name: "sam"}, {name: "aaron"}];
+arrMap.map((val, ind) => {
+  console.log('map val: ', val);  // map val:  { name: 'matt' }
+  console.log('map ind: ', ind);  // map ind: 0
+});
+
+let arrComp = [1, 2, 11, 20];
+
+console.log('arrMap.entries(): ',arrMap.entries());
+console.log('arrMap.keys(): ', arrMap.keys());
+console.log('arrMap.values(): ', arrMap.values());
 
 /*
   Loops, Generators, Collections & more
@@ -243,7 +285,7 @@ let generatorExam = names();
 console.log( JSON.stringify(generatorExam.next() ) ); //{"value":"matt","done":false}
 console.log( JSON.stringify(generatorExam.next() ) ); //{"value":"sam","done":false}
 console.log( JSON.stringify(generatorExam.next() ) ); //{"value":"aaron","done":false}
-console.log( JSON.stringify(generatorExam.next() ) ); //{"done":true}
+console.log( JSON.stringify(generatorExam.next() ) ); //{"value": undefined, "done":true}
 
 
 // Map

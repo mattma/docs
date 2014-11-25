@@ -12,4 +12,4 @@ gulp.task('watch', function(){
   gulp.watch('./es6-*.js', ['compile']);
 });
 
-gulp.task('default', [ 'watch' ]);
+gulp.task('default', [ 'compile', 'watch' ]);

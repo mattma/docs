@@ -4,10 +4,14 @@ Note from [Understanding ES6](https://leanpub.com/understandinges6/read/#leanpub
 
 ECMAScript Language Specfication, Edition 6
 
+Javascript Engines:
+  new versions = forced upgrades, Must run all existing code. ES6 only adds features.
+
 ## Resources:
 
 1. [ES6 Compatibility table](http://kangax.github.io/compat-table/es6/)
 2. [ES6 Learning](https://github.com/ericdouglas/ES6-Learning)
+3. [ES6 Fiddle](http://www.es6fiddle.com/) based on traceur
 
 ## [High Level](http://espadrine.github.io/New-In-A-Spec/es6/)
 
@@ -38,7 +42,7 @@ Iterables: Promise.all(listOfPromises).then(listOfValues => …), Promise.race(l
 
 * proxies: let obj = new Proxy(proto, handler). Long story short: ~ operator overloading with object-like elements. (Can also catch all property accesses on an object.)
 
-* generators: function* gen() { yield 1; yield 2; } Actually, gen() returns ~ an object with a next() function property.
+* generators: function* gen() { yield 1; yield 2; } Actually, gen() returns ~ an object with a next() function property. It is iterables.
 
 * iterators: for (var [key, val] of items(x)) { alert(key + ',' + val); }. Iterators can be generators or proxies.
 
@@ -70,6 +74,10 @@ Iterables: Promise.all(listOfPromises).then(listOfValues => …), Promise.race(l
     }
     // Here, a.get(k) is invalid, a.size is 1, but the key cannot be seen.
 ```
+
+- [6to5](https://6to5.github.io/differences.html) Language Support
+
+Array comprehension, Arrow function, Async function, Class, Computed property names, Constants, Default parameters, Destructuring, For-of, Generators, Generator comprehension, Let scoping, Modules, Property method assignment, Property name shorthand, Rest parameters, Spread, Template literals, Unicode regex.
 
 * modules:
 
@@ -280,7 +288,7 @@ Math.trunc(x)   Removes fraction digits from a float and returns an integer.
 
 3. Object
 
-- Object.is()
+- Object.is(value1, value2)
 
 This method accepts two arguments and returns true if the values are equivalent. Two values are considered equivalent when they are of the same type and have the same value. In many cases, Object.is() works the same as ===. The only differences are that +0 and -0 are considered not equivalent and NaN is considered equivalent to NaN.
 
@@ -297,12 +305,57 @@ This method accepts two arguments and returns true if the values are equivalent.
     console.log(Object.is(5, "5"));     // false
 ```
 
+- Object.assign(obj, mixin)
+
+Merge one object into another one. similar to `_.extend()` from Underscore.js. ex: `Object.assign(this, {x, y})`
+
+- Object.getPrototypeOf(obj)  // Function.prototype
+
+returns the prototype (i.e. the value of the internal [[Prototype]] property) of the specified object.
+
+- Object.setPrototypeOf(Obj, proto)
+
+```js
+  var proto = {};
+  var obj= Object.create(proto);
+  Object.getPrototypeOf(obj) === proto; // true
+```
+
+- shorthand syntax
+
+```js
+  var object = {
+    method() {
+      return "a";
+    }
+  };
+  object.method(); // "a"
+```
+
 - Destructuring Assignment
 
 pulling data out of objects and arrays. destructuring assignment, which systematically goes through an object or array and stores specified pieces of data into local variables.
 
 If the right side value of a destructuring assignment evaluates to null or undefined, an error is thrown.
 If the property with the given name doesn’t exist on the object, then the local variable gets a value of undefined.
+
+```js
+  var [ start, end ] = ["earth", "moon"] // initialize
+  console.log(start + " calling " + end); // earth calling moon
+
+  [start, end] = [end, start] // variable swapping
+  console.log(start + " calling " + end); // moon calling earth
+
+  // skip certain variables, just leave the array element empty
+  function equinox() {
+    return [20, "March", 2013, 11, 02];
+  }
+  var [date, month, , ,] = equinox();
+  console.log("This year's equinox was on " + date + month); // This year's equinox was on 20March
+```
+
+Property value shorthand:  `{x, y}` is the same as `{x: x, y: y}`
+An object returned as multiple return values, the destructuring order is not matter. because matched by key.
 
 ```js
     var options = {
@@ -349,6 +402,23 @@ console.log(firstColor);        // "red"
 console.log(secondColor);   // "green"
 ```
 
+- Object Literal
+
+```js
+// ES5
+var obj = Object.create(someObject);
+obj.myMethod = function(arg1, arg2) {
+  // ...
+};
+
+// ES6
+let obj = {
+  __proto__ : someObject, //special property
+  myMethod(arg1, arg2) {  // method definition
+    // ...
+  }
+}
+```
 
 4. Variable
 
@@ -358,7 +428,21 @@ It’s expected that the majority of JavaScript code going forward will use let 
 
 - let && Block bindings
 
-variables are created at the spot where the declaration occurs. In JavaScript, however, this is not the case. Variables declared using var are hoisted to the top of the function (or global scope) regardless of where the actual declaration occurs.
+variables are created at the spot where the declaration occurs. In JavaScript, however, this is not the case.
+In ES6, Each Block has got its lexical environment.
+Variables declared using var are hoisted to the top of the function (or global scope) regardless of where the actual declaration occurs.
+let/const bind variables to the lexical environment, NOT hoisted.
+
+```js
+  // variable is hoisted to the top, varialbe inside the funcion create a scope, override the global
+  // Within its current scope, regardless of where a variable is declared, it will be, behind the scenes, hoisted to the top
+  var hello;  // the declaration
+  var myvar = 'my value';  // the initialization
+  (function() {
+    alert(myvar); // undefined
+    var myvar = 'local value';
+  })();
+```
 
 ```js
     function getValue(condition) {
@@ -390,6 +474,8 @@ you might expect that the variable value is only defined if condition evaluates 
 The declaration of value is moved to the top (hoisted) while the initialization remains in the same spot. That means the variable value is actually still accessible from within the else clause, it just has a value of undefined because it hasn’t been initialized. For this reason, ECMAScript 6 introduces block level scoping options to make the control of variable lifecycle a little more powerful.
 
 `Let` declarations
+
+`let` it is block scoped instead of function scoped.
 
 The let declaration syntax is the same as for var. You can basically replace var with let to declare a variable but keep its scope to the current code block. The declaration is not hoisted to the top, and the variable value is destroyed once execution has flowed out of the if block. If condition evaluates to false, then value is never declared or initialized.
 
@@ -466,7 +552,7 @@ Since let declarations are not hoisted to the top of the enclosing block, you ma
 
 - const
 
-Variables declared using const are considered to be constants, so the value cannot be changed once set. For this reason, every const variable must be initialized.
+Variables declared using const are considered to be constants, so the value cannot be changed once set. For this reason, every const variable must be initialized. `let` and `const` behave similarly in the sense that both are block scoped, but with const, the values are read-only and cannot be re-declared later on. `const` variable cannot re-assign, re-initialize, re-declare.
 
 ```js
     // Valid constant
@@ -493,7 +579,7 @@ Constants are also block-level declarations, similar to let. That means constant
 
 - Default Parameters
 
-Any parameters with a default value are considered to be optional parameters while those without default value are considered to be required parameters. default parameter arguments is that the default value need not be a primitive value.
+Any parameters with a default value are considered to be optional parameters while those without default value are considered to be required parameters. default parameter arguments is that the default value need not be a primitive value. It only show the default value when passing an `undefined`, but no `null`. `null` consider explicitly enter a `null` value. But no `""`, empty string consider as a valid value so that no default value used.
 
 ```js
     // simple
@@ -535,9 +621,11 @@ Here, if the last argument isn’t provided, the function getCallback() is calle
 
 - Rest Parameter
 
-Rest parameters are indicated by three dots (...) preceding a named parameter. That named parameter then becomes an Array containing the rest of the parameters (which is why these are called “rest” parameters).
+Rest parameters are indicated by three dots (...) preceding a named parameter. That named parameter then becomes an Array containing the rest of the parameters (which is why these are called “rest” parameters). It is the syntax level with three dots ... to denote a variable number of arguments. No need for `arguments` anymore.
 
 The only restriction on rest parameters is that no other named arguments can follow in the function declaration.
+
+`arguments` is not a true array, have some array behaviors. Rest parameter is always the last parameter inside the function, have `...` prefix. When individual parameters invoked by function call, they will packed up into a true array argument and have all array methods available like `forEach`, `map`. If no parameters invoked by function call, rest parameter would be an empty array, so it won't throw an error in this case.
 
 ```js
     // numbers is a rest parameter that contains all parameters after the first one
@@ -561,7 +649,10 @@ The only restriction on rest parameters is that no other named arguments can fol
 
 - Spread Operator
 
-It is closely related to rest parameters.
+It is closely related to rest parameters. It is the opposite of rest parameters. When calling a function, we can pass in the fixed argument that is needed along with an array of a variable size with the familiar three dot syntax, to indicate the variable number of arguments.
+
+Turn an array into function/method arguments. The inverse of a rest parameter, Mostly replace `Function.prototype.apply()`, Also works in Constructors.
+
 Rest parameters specify multiple independent arguments should be combined into an array.
 Spread operator specify an array that should be split and have its items passed in as separate arguments to a function.
 
@@ -578,6 +669,10 @@ Spread operator specify an array that should be split and have its items passed 
     console.log(Math.max(...values));           // 100
     // mix and match the spread operator with other arguments
     console.log(Math.max(...values, 200));   // 200
+
+    // Another example, embed inside an array
+    var a = [3, 4];
+    var b = [1, 2, ...a, 5, 6 ];  // b is [1, 2, 3, 4, 5, 6]
 ```
 
 - Destructured Parameters
@@ -629,6 +724,63 @@ It’s recommended to always provide the default value for destructured paramete
     function setCookie(name, value, { secure, path, domain, expires } = {}) {
         // ...
     }
+```
+
+- Template Literals
+
+Invocation:  ` templateHandler `hello ${first} ${last}`
+Syntax sugar for:  `templateHandler(['hello ', ' ', '!'], first, last)`  // "hello" is static, `first` is dynamic
+
+template literals will always return String. Open a lot of possiblities: Query languages, Text localization, Templating, etc.
+
+```js
+  let url = `http://apiserver/${category}/${id}`
+```
+
+Multiple lines with no excaping.
+
+```js
+  var str = `this is
+    a text with multiple lines`;
+```
+
+```js
+  // localization and formatting
+  I10n`Hello ${name}, you are visitor No. ${visitor}:n! You have ${money}:c in your account!`
+  // I10n is the name mapping to the template function
+  // write a L10n function that:
+  // if it sees nothing after the var, it does nothing
+  // if it sees :n, it uses localized number formatter
+  // if it sees :c, it uses localized currency formatter
+```
+
+```js
+  jsx`<a href="${url}">${text}</a>`
+  // wite a smart jsx function that transform this into
+  React.DOM.a({ href: url }, text);  // No compile to JS language required.
+```
+
+```js
+  // dynamic regular expression
+  new RegExp('\\d+' + separator + '\\d+');
+  // Instead, write a `re` function to make this work
+  re`\d+${separator}\d+`
+```
+
+It could associate a tag with Template Literal, and it could be a function to execute at the run time.
+
+```js
+  let upper = function(strings) {
+    let result = "";
+    for( var i=0; i < strings.length; i++) {
+      result += strings[i];
+    }
+    return result.toUpperCase();
+  };
+  let x =1;
+  let y = 3;
+  let result = upper `${x} + ${y} is ${x+y}`;
+  // result would be  "1 + 3 IS 4"
 ```
 
 - Name Property
@@ -726,7 +878,7 @@ Both typeof and instanceof behave the same with arrow functions as they do with 
 
 functions defined with a new syntax that uses an “arrow” (=>). However, arrow functions behave differently than traditional JavaScript functions in a number of important ways:
 
-* Lexical this binding - The value of this inside of the function is determined by where the arrow function is defined not where it is used.
+* Lexical this binding - The value of this inside of the function is determined by where the arrow function is defined not where it is used. No more `self = this`
 * Not newable - Arrow functions cannot be used a constructors and will throw an error when used with new.
 *  Can’t change this - The value of this inside of the function can’t be changed, it remains the same value throughout the entire lifecycle of the function.
 * No arguments object - You can’t access arguments through the arguments object, you must use named arguments or other ES6 features such as rest arguments.
@@ -735,6 +887,13 @@ functions defined with a new syntax that uses an “arrow” (=>). However, arro
 All variations Syntax begin with function arguments, followed by the arrow, followed by the body of the function. Both the arguments and the body can take different forms depending on usage.
 
 When 1 argument for an arrow function, that one argument can be used directly without any further syntax. The arrow comes next and the expression to the right of the arrow is evaluated and returned. Even though there is no explicit return statement, this arrow function will return the first argument that is passed in.
+
+Note:
+
+Single argument for Arrow function, no () needed
+Two or more arguments, need ()
+Single line of function body, no {} needed, auto return one line statement
+Multiple lines of function body, need {}, need explicity return statement to return anything
 
 ```js
     // arrow function takes a single argument and simply returns it
@@ -771,10 +930,7 @@ If there are no arguments to the function, then you must include an empty set of
 When you want to provide a more traditional function body, perhaps consisting of more than one expression, then you need to wrap the function body in braces and explicitly define a return value. Inside curly braces code work like as the same as in a traditional function with the exception that arguments is not available.
 
 ```js
-    var sum = (num1, num2) => {
-        return num1 + num2;
-    };
-
+    var sum = (num1, num2) => num1 + num2;
     // effectively equivalent to:
     var sum = function(num1, num2) {
         return num1 + num2;
@@ -785,7 +941,6 @@ If you want to create a function that does nothing, then you need to include cur
 
 ```js
     var doNothing = () => {};
-
     // effectively equivalent to:
     var doNothing = function() {};
 ```
@@ -805,8 +960,9 @@ Because curly braces are used to denote the function’s body, an arrow function
 ```
 
 ```js
-    document.addEventListener("click", (function(event) {
-       this.doSomething(event.type);     // no error
+  // or using `var self = that;` call `that.doSomething` inside the callback
+  document.addEventListener("click", (function(event) {
+     this.doSomething(event.type);     // no error
    }).bind(this), false);
 
    // effectively equivalent to:
@@ -836,6 +992,44 @@ Features:
 * support late bound cycles between modules for both the default export and named exports. It just works.
 * separate the names that exist on the default export (and their prototype chains) and other named exports, avoiding collisions.
 * make it easy to determine exactly what you are importing by just looking at the syntax. That improves error messages, but also makes it easier to build tools like browserify and JSHint that work reliably without caveats.
+* rename imports
+* module IDs are configurable ( default: paths relative to importing file )
+* Programmatic (ex: conditional) loading of modules via an API.
+
+Can’t put import (or export) statements anywhere except top level code. It is static analysis.
+Mutable Binding: The ability to import a name, from a module, and have it look like a global variable while at the same time changing like an object.
+
+```js
+// syntax
+module "widget" { }
+module "widget/button" { }
+
+import "lib/ad" as c;
+import { meth as method } from "a";
+
+export default class {}
+import ad from "ad"
+```
+
+```js
+if (foo) {
+  // Not allow
+  import {_bar, _baz} from 'bat';
+}
+
+// So this is NOT allow neither
+// this exports your module as an AMD one if that exists, a Common JS one if that exists and otherwise assumes you are in a regular browser and attaches it to the window. Creating things like this is impossible in ES6 modules.
+var myThing = something;
+if (typeof define === 'function' && define.amd) {
+    define(function () {
+        return myThing;
+    });
+} else if (typeof exports === 'object') {
+    module.exports = myThing;
+} else {
+    window.myThing = myThing;
+}
+```
 
 - export
 
@@ -916,4 +1110,471 @@ function initParams() {                     function initParams() {
   util._extend({}, options);                   opts = _extend({}, options);
 }                                                      }
 
+```
+
+12. Class
+
+It is a representation of an object. It forms the blueprint, while an object is an instance of a class. Behind the scene, JS create a constructor function, and manipulate prototype properties on them, like what we did in ES5, no change.
+
+```js
+  class Language {
+    // constructor function is automatically invoked
+    constructor(name, founder, year) {
+      this.name = name;
+      this.founder = founder;
+      this._year = year;
+    }
+    // no colon or function keyword needed, no comma, semicolon is optional
+    summary() {
+      return this.name + " was created by " + this.founder + " in " + this._year;
+    }
+    /*
+      // equal to what is above
+      Language.prototype = {
+        summary:  function() {
+          return ...
+        }
+      }
+     */
+
+    // Getter and Setter:  Good for encapsulate a state of an Object
+    // bind a property of an object to a function
+    // Like Ember computed property:  function(){}.property()
+    //
+    // In this case, year is a property of the  Language class
+    // getter name must not the same as any constructor property, otherwise, it will always call itself.
+    // error out with Max call stack execeeded.
+    get year() {
+      return 10 + this._year;
+    }
+    // if setter is omit, year property is simply read-only property
+    set year(newValue) {
+      this._year = year;
+    }
+  }
+```
+
+We can extend the class to implement a sub-class MetaLanguage that will inherit all the properties from the parent class Language. Inside the constructor function, we will require the function super that will call the constructor of the parent class so that it is able to inherit all of its properties. Lastly, we can also add on extra properties.
+
+`super` keyword could use inside constructor, method.
+
+```js
+  // inheritance
+  class MetaLanguage extends Language {
+    // if we have a function  constructor, it will override the super class
+    // without `super` class, it won't call super class constructor at all.
+    constructor(x, y, z, version) {                      constructor(version, name, founder, year) {
+      super(x, y, z);                                              super(name, founder, year);
+      this.version = version;                                 this.version = version;
+    }                                                                }
+    summary() {
+      return this.version + " : " + super()
+    }
+  }
+```
+
+13. Collections: Set & Map
+
+Data structure (Sets and Maps),
+
+- Set:   simple data structures that are similar to arrays, but each value is unique. No duplicates.
+
+add(key) / has(key) / delete(key) / entries() -> iterator
+
+```js
+  var engines = new Set(); // create new Set
+  engines.add("Gecko"); // add to Set
+  engines.add("Hippo");
+  engines.add("Hippo"); // note that Hippo is added twice. Only one added to the set.
+  engines.values().next().value; // Gecko
+  engines.values().next().value; // Hippo
+  engines.has("Hippo");  // true
+  engines.delete("Hippo"); // delete item
+
+```
+
+- Map:    similar to JavaScript object key-value pairs. Using a unique key, we can retrieve the value.
+In ES6, the key can be any JavaScript data type like Object and not just strings. Data structure map from arbitrary values to arbitrary values. ( Objects: keys must be string ). Can iterate over keys, values, entries and more.
+
+get(key) / has(key) / set(key, value)
+
+```js
+  var es6 = new Map(); // create new Map
+  es6.set("edition", 6);        // key is string
+  es6.set(262, "standard");     // key is number
+  es6.set(undefined, "nah");    // key is undefined
+
+  for( let w of es6.values() ) {
+    console.log(w);
+  }
+
+  var hello = function() {console.log("hello");};
+  es6.set(hello, "Hello ES6!"); // key is function
+
+  es6.has(undefined); // true
+  es6.delete(undefined); // delete map
+```
+
+- WeakMap
+
+Avoid memory leaks
+reference to the key obj held weakkly
+key must be an object
+No iterators methods
+
+14. Iterators
+
+ES6 standardize iterables and iterators. Iterable (ex: Array) can be iterated by or retrived by Iterator. Iterator allow to walk through the collection one item at the time, iterator has a `next` method on the object, can get its value from `next` method.
+
+Iterator does not have length property. It is lazy, run must faster.
+
+```js
+  // iterator at the very low level. has to keep calling `next` to get its value
+  // somehow have a loop at the end, call `.next` to get its next value. No length property.
+  let numbers = [1,2,3,4];
+  let sum = 0;
+  let iterator = numbers.values();  // .values would return an iterator, which allow to walk through the value
+
+  // form 1
+  let next = iterator.next();
+  while( !next.done ) {
+    sum += next.value;
+    next = iterator.next();
+  }
+
+  // form 2
+  for ( let n of [1,2,3,4] ) {
+    sum += n;
+  }
+```
+
+`for-in` loop to work with object, object key as parameter; work with array, array index as parameter.
+`for-of` loop through the value, not key nor index, can get its value out of collection. work with any object that iterable. Behind the scene, `for-of` could check the iterator to see `done` value is true or not, keep calling `next` method automatically on `[Symbol.iterator]().next()` on the object itself. since all iterable object have to implement it.
+
+The only way to get to that Symbol value, Way 1,  use the Symbol assigned variable.  Way 2,  `Symbol.iterator`, it is a const, js runtime set its value, to get to any object that is iterable.
+
+```js
+  let x = [1,2,3];
+  x[Symbol.iterator]   // would get back a function
+  x[Symbol.iterator]()  // get back the iterator what i need
+  // so that `for-of` would retrieve that property,
+  x[Symbol.iterator]().next()  // Object { value: 1, done: false }  // you could iterate through it
+```
+
+Hard way, implement `[Symbol.iterator]` manually to see what is behind the scene.
+
+```js
+  class Company {
+    construtor() {
+      this.employees = [];
+    }
+    addEmployees(...names) {
+      this.employees = this.employees.concat(names);
+    }
+
+    // Way 1: hard way, manually write out the Symbol.iterator
+    // we have to manually add the code to make it iterable
+    [Symbol.iterator]() {
+      // this.employees  is the array need to be iterated
+      // keep calling `ArrayIterator.next` until it reaches `done: true`
+      return new ArrayIterator( this.employees );
+    }
+
+    // Way 2, simple way with Generator function. see Generators for details
+    // Generator inside class is always started with `*`
+    // we have to manually add the code to make it iterable
+    *[Symbol.iterator]() {
+      for( let e of this.employees) {
+        yield e;
+      }
+    }
+
+  }
+
+  let count = 0;
+  let company = new Company();
+  company.addEmployees("matt", "aaron", "sam", "mom");
+
+  // by default, `company` instance object is not iterable, has to
+  // implement `[Symbol.iterator]` manually to make it iterable
+  for (let employee of company ) {
+    count += 1;
+  }
+
+  class ArrayIterator {
+    constructor(array) {
+      this.array = array;
+      this.index = 0;
+    }
+    next() {
+      var result = { value: undefined, done: true };
+      // the logic here is customizable, could be sorted, reversed, or anything
+      // No client code change, we could modified the internal of the iterator
+      // as long as `next` return an Object with **value** and **done** property
+      // Benefit, the array itself is protected, no one could change its values, pop/push, etc.
+      if ( this.index < this.array.length ) {
+        result.value = this.array[ this.index ];
+        result.done = false;
+        this.index += 1;
+      }
+      return result;
+    }
+  }
+
+  // additional, to filter employee with a simple generator
+  let filter = function* (items, prediate) {
+    for(let item of items ) {
+      if(prediate(item)) { yield item; }
+    }
+  }
+  for (let employee of filter(company, e => e[0] == "m") ) {
+    count += 1;
+  }
+
+  // additional on top of the previous with Generator + return statement
+  let take = function*(items, number) {
+    let count = 0;
+    if(number < 1) return;
+    for(let item of items ) {
+      yield item;
+      count += 1;
+      // when reach the desired number, auto return, no more yield value look up
+      if ( count >= number) { return; }
+    }
+  }
+  for (let employee of take( filter(company, e => e[0] == "m"), 1 ) ) {
+    count += 1;
+  }
+```
+
+Easier way, using `Generators`. See Generators section for details.
+
+Iteration protocol:
+  **Iterable**: a data structure whose elements can be traversed. ex: Array, Set, all array-link DOM objects
+    syntax: `{ iterator: function() -> iterator }`
+  **Iterator**: the pointer used for traversal
+    syntax: `{ next: function() -> any }`
+
+JavaScript offers for-in for iteration, but it has some limitations. For example, in an array iteration, the results with a for-in loop will give us the indexes and not the values.
+
+ES6 `for-of` with an array, a set and a map. It is a better loop. Replace `for-in`, `Array.prototype.forEach()`. Works for: iterables, convert array-like objects via `Array.from()`. Array.from like Array.map, always return an Array
+
+```js
+  var planets = ["Mercury", "Venus", "Earth", "Mars"];
+  for (let [ind, elem] of planets) {
+    console.log(ind, elem); // 0 Mercury     1 Venus     2 Earth      3 Mars
+  }
+
+  var engines = Set(["Gecko", "Trident", "Webkit", "Webkit"]);
+  for (var e of engines) {
+      console.log(e); // Set only has unique values, hence Webkit shows only once
+  }
+
+  var es6 = new Map();
+  es6.set("edition", 6);
+  es6.set("committee", "TC39");
+  es6.set("standard", "ECMA-262");
+  for (var [name, value] of es6) {
+    console.log(name + ": " + value);
+  }
+```
+
+15. Genarators
+
+It is a factory function for the iterators. `function*` for generator function and `yield` keyword inside the function body. Instead of using `return` to return a value, use `yield` to return a multiple value. Generator inside Class is always started with `*`
+
+`yield` will produce a value everytime. When the execution reach to a yield, it will return value back to the caller. Caller could do whatever they need to that value. Then, caller askes iterator for the next value, the execution returns to the generator function and pick up where it left off. Continue to no `yield` object left, iterator will return an Done flag to true. Generator function could suspend the execution, pausing, resume in the later time when caller ask for the next value.
+
+Generator function body can have a `return` statement, the iterator of this generator created will automatically set { done: true }. Combine with return statement, it makes lazy evaluation.
+Generator function won't execute, until call iterator.next(), hit yield, pause the execution.
+
+```js
+  let numbers = function* (start, end) {
+    for(let i = start; i <= end; i++) {
+      console.log(i);
+      yield i;
+    }
+  };
+  let sum = 0;
+  let iterator = numbers(1,4);
+  console.log("next");
+  let next = iterator.next();
+  while(!next.done) {
+    sum += next.value;
+    console.log("next");
+    next = iterator.next();
+  }
+  // result of the `sum`  would be 10
+```
+
+Demistified the code above to see the magic
+
+```js
+  // shorthand.
+  // `for-of` is to generate the code to work with iterator
+  // calling `next`, check its done flag. look at the hard way
+  let sum = 0;
+  for (let n of number(1, 4) ) {
+    sum += n;
+  }
+
+  // hard way
+  let sum = 0;
+  let iterator = numbers(1,4);
+  let next = iterator.next();
+  while(!next.done) {
+    sum += next.value;
+    next = iterator.next();
+  }
+```
+
+```js
+  // short hand: Generator is a high level syntax for the hard way.
+  // Generator function create an iterator Object in the hard way
+  // Iterator has to have a `next` method, keep track the state of iteration with the index property
+  let numbers = function* (start, end) {
+    for(let i = start; i <= end; i++) {
+      console.log(i);
+      yield i;
+    }
+  };
+
+  // Hard way
+  class RangeIterator() {
+    constructor(start, end) {
+      this.current = start;
+      this.end = end;
+    }
+    next() {
+      let result = { value: undefined, done: true };
+      if ( this.current <= this.end ) {
+        result.value = this.current;
+        result.done = false;
+        this.current += 1;
+      }
+      return result;
+    }
+  }
+```
+
+In addition, `next` function could take parameter as well, it will change the state of the iteration. Normally, do not pass in parameter as the first call of `next`, since it will change to the state of the iterator. If you need to do that, update the caller invoke function.
+
+```js
+  let numbers = function* (start, end) {
+    let current = start;
+    while( current <= end) {
+      // if caller called next, and pass me sth. that would be resulted of the yield statement.
+      // in this case, delta would be value of 2.  from the caller.
+      let delta = yield current;
+      current += dalta || 1;
+    }
+  };
+  let result = [];
+  let iterator = numbers(1, 10);
+  let next = iterator.next();
+  while(!next.done) {
+    result.push(next.value);
+    next = iterator.next(2);
+  }
+  // result value would be [1,3,5,7,9]
+```
+
+15. Array
+
+See those in action inside `es6-features.js` under Array section
+
+`Array.map()`, `Array.filter()` support natively.
+`Array.find()`, `Array.findIndex()`
+`Array.entries()`, `Array.keys()`, `Array.values()`
+
+
+16. Javascript GotYou
+
+- Binding. In JavaScript numbers and strings are references to specific values and are passed around by reference. Object, Array, Function do not work that way.
+
+```js
+  //
+  var a = 3;  // a is 3
+  var b = a;  // b is 3
+  a++; // a is 4, b is 3. because a and b were both just references to the number 3
+
+  var a = {num:3}
+  var b = a;
+  a.num++; // both a.num, b.num equal to 4.
+```
+
+So ES6, If you import into multiple files, functions, they are just references to the same object. modules export are bindings. so if one file changes(increment) its value, another file will update the value as well.
+
+- Circular dependencies
+
+2 modules require each other, think of them as being like regular JavaScript variables where the variable to be used is initialized at the top of the scope, but doesn’t have a value until later on. The point here is that obj is bound by the time b executes, but the assignment has not been made as we still have to execute sources in some underlying order.
+
+In Node.js, it works. Because use Node.js exports to create an empty object for the module that is available immediately for reference by other modules.
+
+17. Symbol
+
+Imspired by Lisp, etc. A new kind of primitive value. Each symbol is unique.
+Symbol is a function object. Every Symbol will have some random value associated with it so that you could use Symbol as a property name in the object, it won't conflict with any other name in the object.
+
+```js
+  let sym = Symbol();
+  console.log( typeof sym )  // 'symbol'
+```
+
+Enum-style values
+
+```js
+  // ES5. This is the old way to implement
+  var red = "red";
+  var green = "green";
+  var blue = "blue";
+
+  // ES6. Using symbol to instead of defining `var red = "red"`
+  const red = Symbol();
+  const green = Symbol();
+  const blue = Symbol();
+
+  function handleColor(color) {
+    switch(color) {
+      case red:
+        ...
+      case green:
+        ...
+      case blue:
+        ...
+    }
+  }
+```
+
+Property keys. Advantage: No name clashes.  Configure objects for ECMAScript and frameworks: introduce publicly known symbols. Ex: property key `Symbol.iterator` makes an object iterable.
+
+```js
+  let specialMethod = Symbol();
+  let obj = {
+    // computed property key
+    [specialMethod]: function(arg) {
+
+    }
+  };
+  obj[specialMethod](123);
+
+  // or short hand method definition syntax
+  let obj = {
+    [specialMethod](arg) {
+      // ...
+    }
+  }
+```
+
+18. Proxies
+
+```js
+  var obj = { num: 1 };
+  obj = Proxy( obj, {
+    set: function ( target, property, value ) {
+      target[property] = value + 1;
+    }
+  });
+  obj.num = 2;  // [[Set]]
+  console.log( obj.num );  // 3
 ```
