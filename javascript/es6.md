@@ -262,6 +262,14 @@ JavaScript can only accurately represent integers between -2 power 53 and 2 powe
     console.log(Number.isSafeInteger(outside));     // false
 ```
 
+- Number.isNaN()
+
+In ES5, `isNaN('NaN')` would be true, but in ES6, `isNaN('NaN')` would be false, because it is not a Number, it is a String.
+
+- Number.MAX_SAFE_INTEGER and Number.MIN_SAFE_INTEGER
+
+deal with `Math.pow(2, 53)` is the max value of the Integer what JS is able to store. Now it is a Const.
+
 - New Math Methods
 
 The aforementioned new emphasis on gaming and graphics in JavaScript led to the realization that many mathematical calculations could be done more efficiently by a JavaScript engine than with pure JavaScript code. Optimization strategies like asm.js, which works on a subset of JavaScript to improve performance, need more information to perform calculations in the fastest way possible.
@@ -1173,16 +1181,16 @@ We can extend the class to implement a sub-class MetaLanguage that will inherit 
   }
 ```
 
-13. Collections: Set & Map
-
-Data structure (Sets and Maps),
+13. Collections(Data structure): Set, Map, WeakMap, WeakSet
 
 - Set:   simple data structures that are similar to arrays, but each value is unique. No duplicates.
+Can use object as key but array will object into string as key. Primitive value or object could be the key of the Set.
 
-add(key) / has(key) / delete(key) / entries() -> iterator
+add(key) / has(key) / delete(key)  / set.size / set.clear() // remove all items inside the current set
 
 ```js
   var engines = new Set(); // create new Set
+  engines.size;   // 0        // like array.length
   engines.add("Gecko"); // add to Set
   engines.add("Hippo");
   engines.add("Hippo"); // note that Hippo is added twice. Only one added to the set.
@@ -1191,12 +1199,43 @@ add(key) / has(key) / delete(key) / entries() -> iterator
   engines.has("Hippo");  // true
   engines.delete("Hippo"); // delete item
 
+  var set = new Set();
+  var key = {};
+  set.add(key);
+  set.has(key); // true
+
+  // Array passed in will be spread out into each key inside the set
+  var set1 = new Set([1,2,3]);
+  set.has(1);  // true.
 ```
 
-- Map:    similar to JavaScript object key-value pairs. Using a unique key, we can retrieve the value.
+Iterate the set using `forEach` and other methods. Set is not an order list, it will be called on each item on insertation order, if need an object structure, you need to use Array or more complex data structure.
+
+```js
+    let iterationCount = 0;
+    set.forEach( item => iterationCount++ );
+
+    // more readable
+    for(let item of set) {
+        iterationCount++
+    }
+```
+
+3 functions to expose the set as an iterator.
+* `set.entries() -> iterator`, should return an iterator of array when entries is called. Use `next().value` to invoke. it has two values [keyValue,keyValue], both values would be the key value of the set, they are identical to each other.
+* `set.values() -> iterator`, should return an iterator of values when values is called. `next().value`
+* be able to constructed with an iterator. see example below
+
+```js
+    var set = new Set(1,2,3);
+    var set2 = new Set( set.values() );  // pass back as an iterator   or  var set2 = new Set(set); // duplicate the set via for-of internally
+    set2.size;  // 3,  it will duplicate the set to the set2, but they are different set.
+```
+
+- Map: like Set, but hold key-value pair. Key must be a unique, we can retrieve the value. Use primitive value or object or anything to be the key.
 In ES6, the key can be any JavaScript data type like Object and not just strings. Data structure map from arbitrary values to arbitrary values. ( Objects: keys must be string ). Can iterate over keys, values, entries and more.
 
-get(key) / has(key) / set(key, value)
+get(key) / has(key) / set(key, value) / delete(key) / map.size / map.clear()
 
 ```js
   var es6 = new Map(); // create new Map
@@ -1213,7 +1252,16 @@ get(key) / has(key) / set(key, value)
 
   es6.has(undefined); // true
   es6.delete(undefined); // delete map
+
+  // example give an array in the constructor
+  var map = new Map( ['name', 'matt'], ['age', 15], ['weight', 155]);
+
+  // constructed with an iterator
+  var map2 = new Map( map.entries() );  // map2.size === 3
 ```
+
+Iterate the map. ex: `map.forEach( (value, key) => value )` or `for-of`.
+Iterator like set,  `entries() -> iterator`, `values() -> iterator`, `keys () -> iterator`
 
 - WeakMap
 
@@ -1221,6 +1269,23 @@ Avoid memory leaks
 reference to the key obj held weakkly
 key must be an object
 No iterators methods
+
+ex: item1 is associated with Div1, item2 is associated with Div2. When Div2 is being deleted from body, Set->item2 still has a pointer to the value of Div2, so that Div2 cannot be gabage collected, still in memory.
+
+Set        Body
+Item1    Div1
+Item2    Div2
+
+So WeakMap, WeakSet, setup a weak pointer, so that its associated value could be gabage collected.
+
+- Because GC could happen any given time, so WeakSet, WeakMap values could be deleted at any time.
+They do not have methods below
+
+weakset.size,  weakset.entries,  weakset.values, weakset.forEach,    // undefined
+weakmap.size,  weakmap.entries,  weakmap.values, weakmap.keys(), weakmap.forEach,    // undefined
+
+Other than those methods, everything else look just like Set and Map. Can be iterated with `for-of`
+
 
 14. Iterators
 
@@ -1484,9 +1549,82 @@ In addition, `next` function could take parameter as well, it will change the st
 See those in action inside `es6-features.js` under Array section
 
 `Array.map()`, `Array.filter()` support natively.
-`Array.find()`, `Array.findIndex()`
-`Array.entries()`, `Array.keys()`, `Array.values()`
 
+- Array.of()
+
+Create a new Array with 1 arg when given 1 argument when of is called.
+
+```js
+    var arr = new Array(3);  // create an array with 3 elements.  [undefined, undefined, undefined]
+    var arr = new Array(1,2,3);  // create  [1,2,3]
+    var ofArr = Array.of(3);  // create [3].   length is 1.
+```
+
+- Array.from()
+
+Create a new Array from an array-like object when from is called.
+
+```js
+    var arrLike = document.querySelectorAll('div');
+    // typeof  arrLike.forEach   should be undefined
+    // make a true array out of it
+    Array.from( arrLike );
+```
+
+- Array.entries()
+
+return entries from the entires function
+
+```js
+    var arr = ["matt", "sam", "aaron"];
+    var entries = arr.entries();
+    entries.next().value;   // [0, "matt"]  // return [index, value]
+```
+
+- Array.keys()
+
+key iterator, when calling `arr.keys()`, it would only return an index.
+
+- Array.values()
+
+value iterator, when calling `arr.values()`, it would only return the value.
+
+- Array.find()
+
+Return a first element inside the callback is truty.
+
+```js
+    [1,5, 10].find( (x) => x > 8 )  // 10
+```
+
+- Array.findIndex()
+
+Like `Array.find()` but return the finding index of first matching truty element inside the callback
+
+```js
+    [1,5, 10].findIndex( (x) => x > 3 )  // 1
+```
+
+- Array.fill(value, startIndex*, endIndex*)
+
+Fill all or portion of an array
+
+```js
+    var arr = [1,2,3,4,5];
+    arr.fill('a');   // arr become to   ['a', 'a', 'a', 'a', 'a']  because every index value would be 'a'
+    arr.fill('a', 2, 3);  // arr become to [1,2,'a',4,5]
+```
+
+- Array.copyWithin(targetIndex, copyFromIndex, endIndex*)
+
+Copy a portion of an existing array on top of itself in the different location. Think of two pointer, first pointer is the target where you copy the new element to, second pointer will be where it copys from
+
+```js
+    var arr = [1,2,3,4];
+    arr.copyWithin(2, 0);  // [1,2,1,2]
+    arr.copyWithin(2, 0, 1);  // [1,2,1,4]
+    arr.copyWithin(0, -2);  // [3,4,3,4]
+```
 
 16. Javascript GotYou
 
@@ -1577,4 +1715,58 @@ Property keys. Advantage: No name clashes.  Configure objects for ECMAScript and
   });
   obj.num = 2;  // [[Set]]
   console.log( obj.num );  // 3
+```
+
+19. Comprehensions
+
+It is a Ter syntax to build array and generator. `for-of` would be a good candidate to build comprehension.
+
+Array comprehensions, it creates a list based on an original list with some operation. Like Array.map().
+Syntax:  `[ for ( i of arr ) i ]`  // [1,2,3]  just like the original list.  use `if` to filter the array.
+It is greddy, it is immediately build up the result of the array. used `[]` around the block. It will loop through the entire array items.
+
+```js
+    // [] indicate this is an array comprehension
+    // for-of inside [], n represent each item of collection
+    // No `let` keyword for n, let is explicitly applied. n scoped inside the function
+    var numbers = [ for (n of [1,2,3]) if(n>1) n * n ];
+    // numbers would be   [1,4,9]
+
+    // shorthand for this below
+    let numbers = [];
+    for(let n of [1,2,3]) {
+        if( n > 1 ) numbers.push(n * n);
+    }
+```
+
+Multiple `for` clause inside one array comprehension
+
+```js
+    var arr = [ for(first of ["matt", "aaron", "sam"]) for(middle of ["sam", "hero", "beauty"]) if(first !== middle) ( first+' '+middle+' ma') ];
+    // arr would be an array with all possible combination of firstName middleName lastName
+```
+
+Generator comprehension is lazy, it waits for the `next` method. used `()` around the block. It would be lazy, scan one item at the time.
+
+```js
+    // this is not building an array, it will return as a generator, could use `next()` method
+    // to get the each value back. Get each value lazily.
+    var numbers = (for ( n of [1,2,3]) n*n);
+    // numbers would be   [1,4,9]
+```
+
+Real word example. When `yield` with an array comprehension, it will return an Array representation of the value.
+When use `yield*` will return each item in String representation of the value, not an array.
+
+```js
+    // items = ["matt", "aaron", "sam"]
+    let filter = function*(items, predicate) {
+        // yield [for (item of items) if(predicate(item)) item ];  // yield ["matt"] without `yield*`
+
+        // yield "matt" for example here. It is an Greddy operation, will loop the whole array with each items
+        // yield* [for (item of items) if(predicate(item)) item ];
+
+        // Best way to do it here, use Generator comprehension, lazy iterate the collections, once it finds the item, it will stop the scanning, break out of the loop
+        yield* (for (item of items) if(predicate(item)) item);
+    }
 ```
