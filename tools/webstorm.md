@@ -15,6 +15,8 @@
     ln -s ~/Dropbox/WebStorm/preferences/templates ~/Library/Preferences/WebStorm9/templates
     ln -s ~/Dropbox/WebStorm/preferences/tools ~/Library/Preferences/WebStorm9/tools
 
+    ln -s ~/Dropbox/WebStorm/.ideavimrc ~/.ideavimrc
+
 - Configuration
 
     ~/Library/Preferences/<PRODUCT><VERSION>
@@ -67,6 +69,10 @@ create a new file type
 
 quick documentation
 
+- alt + F1
+
+Switch between views ( Project, Structure, etc. )
+
 - alt + space
 
 quick method lookup
@@ -85,6 +91,11 @@ go back and forth where previous file location
 
 - alt + enter
 
+Show the list of available **Intention actions**
+* Applying Intention Actions
+* Configuring Intention Actions
+* Disabling Intention Actions
+
 language injection, quickly edit preferred language code in assistant editor
 check regular expression.
 several other cool features embedded into this command
@@ -98,9 +109,33 @@ refactor this command menu popup
 
 surround with predefined block
 
+- cmd + / && cmd + alt + /
+
+Comment or uncomment a line or fragment of code with the line or block comment.
+
+- ctrl + alt + /
+
+collapse all comment blocks
+
+- cmd + ctrl + /
+
+expand all comment blocks
+
 - ctrl + tab
 
-go to last edited file
+Switch between the tool windows and files opened in the editor.
+
+- alt + up|down
+
+incremental expression selection, highlight select text
+
+- cmd + shift + F7
+
+quick view the usages of the selected symbol
+
+- ctrl + space
+
+invoke code completion
 
 #### Navigation
 
@@ -115,6 +150,10 @@ Go to file. Junction with `cmd + y` will preview the content of the file
 - cmd + alt + o
 
 Go to symbol. Find any symbol in the project
+
+- ctrl + tab
+
+go to last edited file
 
 - cmd + e
 
@@ -146,7 +185,15 @@ Jump to navigation bar
 
 - cmd + j
 
-browse the list of live template
+insert/browse the list of live template
+
+- cmd + alt +j
+
+surround with a live template
+
+- cmd + alt + [|]
+
+navigate to the code block start|end
 
 #### Search/Replace
 
@@ -202,6 +249,12 @@ The search is fuzzy, and also supports line numbers – you can use abbreviation
 PhpStorm remembers multiple clipboard contents – you can press CTRL+SHIFT+V to summon a popup which lets you paste clipboard content that’s less recent than the latest.
 
 Context-aware editing will allow you to edit a string that’s written in another language in a dedicated editor, complete with code hinting and autocompletion. For example, you if you have an HTML snippet written in a PHP string, you can ALT+ENTER in the string’s content and select Edit HTML content. This happens:
+
+### VIM
+
+- /    will type search and highlight any matching search query
+
+to disable the highlight matching field, type `\` again to open the prompt, then type `:noh`, hit enter.
 
 ### JSDoc
 

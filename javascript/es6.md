@@ -1039,6 +1039,52 @@ if (typeof define === 'function' && define.amd) {
 }
 ```
 
+Using ES6 import/export is not a perfect with some problems: default key emergence problem in ES5 CJS runtimes
+
+```js
+// Demo: demos the behavior of default key
+// Node style module writ in ES6 syntax:
+exports default foo = () => console.log(‘hi’)
+
+// Unfortunately “literally” transpiles to this:
+exports.default = function foo() {
+  return console.log(‘hi’)
+}
+
+// Which means this will fail:
+var foo = require(‘./foo’)
+foo() // object is not a function!
+
+// But this will work:
+var foo = require(‘./foo’).default
+foo() // outputs 'hi'
+
+// There is a fix!
+//
+// If we compile with 6to5 we get what we expect!
+module.exports = function foo() {
+  return console.log(‘hi’)
+}
+
+// call as usual
+var foo = require(‘./foo’)
+foo() // outputs 'hi'!
+```
+
+Here are some solutions for this problem
+
+Ignore ES modules until they land in all runtimes and continue to write ES5 CJS module.exports and require syntax (boo! hiss! boring!)
+
+Wholesale import * as foo from ‘foo’ and hope the foo package doesn’t change its exports (works, and is probably safe, but feels yolo)
+
+Pretend that appending .default is harmless aesthetics … ಠ_ಠ
+
+Brutally clobber the problem by appending module.exports = module.default at the end of each module in your ES5 publishing build pipeline (thunderbolt viking style! also yolo)
+
+Use the 6to5 compiler with the —modules commonInterop flag which does the expected thing: compile out a single function export to module.exports when there are no other named exports.
+
+Note: You publish to npm as ES5 source so everyone can benefit from your hard work, recommend publishing to npm as ES5 for maximal reuse
+
 - export
 
 Export a default value from a module by using `export default`.  ex: `export default asap`
