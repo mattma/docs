@@ -1166,6 +1166,24 @@ function initParams() {                     function initParams() {
 
 ```
 
+`Module syntax` The way we write modules in our code with the new `import`, `export` and `module` keywords.
+The `module loader` The module loading pipeline instructing the JavaScript engine how to handle loading modules. It comprehensively specifies the entire loading algorithm through a module loader class.
+
+```js
+// app/module.js
+export var test = 'es6';
+export class MyClass {
+  constructor() {
+    console.log('ES6 Class!');
+  }
+}
+
+// app/app.js
+import {test, MyCLass} from './module';
+console.log(test);
+new MyClass();
+```
+
 12. Class
 
 It is a representation of an object. It forms the blueprint, while an object is an instance of a class. Behind the scene, JS create a constructor function, and manipulate prototype properties on them, like what we did in ES5, no change.

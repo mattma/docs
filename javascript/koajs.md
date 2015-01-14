@@ -1,86 +1,55 @@
 # KOA
 
-It is a minimalist node.js web framework, uses ES6 generators for better async control flow (use `co`) and robust error handling (with try/catch support), Async/Await-style control flow. It Simplied Nodejs async programming. Building apps is much more semantic. It is like building a christmas tree with decorations from bottom, then up. It is a truly expressive framework, which allow you to write your app without relying on the features of framework.  No depending on "an API for that". It is extremely modular, meaning every module does one thing well and nothing more.
 
-there are two other key features; cascading middleware (Think about it like this: a single function can encapsulate the entire intent of the middleware.) and sane error handling. “yields ‘downstream’, then control flows back ‘upstream’.  the function then yields ‘downstream’ to whatever is passed in as next and when that function (and any functions it yields to) has finished, control is returned back to this function to calculate and log elapsed time.
-
-Koa catches our blatant error and properly returns a 500 status error to the client. Our app doesn’t crash. It doesn’t need a module like forever to restart it. You don’t need to wrap things in a domain. Of course if your app is in the real world, you’ll want to be more specific, like:
-
-```js
-app.use(function *() {
-  this.body = "...header stuff";
-  try {
-    yield saveResults();
-  } catch (err) {
-    this.throw(400, 'Results were too awesome')
-  }
-  //could do some other yield here
-  this.body += "...footer stuff"
-});
-```
-
-Yes, that’s a bona fide try/catch block. You can call this.throw with any message and status code, and Koa will pass it along to the client.
-
-Lazy evaluation is already possible with JavaScript using closure tricks and the like, but its greatly simplified now with yield. By suspending execution and resuming at will, we are able to pull values only when we need to.
+[Intro](#Intro)
+[Koa vs Express](#koavsexpress)
+[KOA wiki](https://github.com/koajs/koa/wiki) includes list of resources.
 
 
-It fixed express.js by abstraction and generators. Koa abstracts node's request and response objects so no monkey patching is required. Koa uses generators for better async control flow. Koa has better stream handling via [destroy](https://github.com/stream-utils/destroy) and [on-finished](http://github.com/jshttp/on-finished). Both koa and express use the same modules.
+## Intro
 
-- Koa is barebones
+Koa is a minimalist node.js web framework, uses ES6 generators for better Async(/Await<=future) control flow (by using `co`) and robust error handling (with `try/catch` support). It is extremely modular, meaning every module does one thing well and nothing more. It simplied nodejs async programming, building apps is much more semantic, is a truly expressive framework, which allow you to write your app without relying on the features of framework. No depending on "an API for that".
 
-Unlike both Connect and Express, Koa does not include any middleware.
-Unlike Express, routing is not provided.
-Unlike Express, many convenience utilities are not provided. For example, sending files.
-But Koa is more modular.
+Before learning koa, you need to know Promises, Generators, Modular, HTTP. Some great use cases: APIs (JSON 1st citizen), promise-based model (MVC), complex and/or unconventional sites.
 
-- Koa relies less on middleware
 
-For example, instead of a "body parsing" middleware, you would instead use a body parsing function.
+#### Key features:
 
-- Koa abstracts node's request/response
+- middleware: cascading middlewares
 
-Less hackery. Better user experience. Proper stream handling.
+A single function can encapsulate the entire intent of the middleware. The middleware function yields "downstream" to whatever is passed in as `next` and when that function (and any functions it yields to) has finished, then control flows back "upstream".
 
-Main reasons:
-
-1. Superior, callback-less control flow (Generated-based control flow)
-
-Koa's underlying generator engine co, there's no more callback hell. Of course, this is assuming you write your libraries using generators, promises, or return thunks. `co`'s control flow handling isn't about eliminating callbacks. You can also execute multiple asynchronous tasks in parallel and in series without calling a function.
+The order of middleware is very important, It is like building a christmas tree with decorations from bottom, then up. **Build from the bottom(add more business logic) and up**
 
 ```js
-// executed three asynchronous functions in parallel. No need for addtional library like `async`
-app.use(function* () {
-  yield [fn1, fn2, fn3]
-})
+    app.use(require('koa-compress')());     // <= 4th, final gzip
+    app.use(require('koa-static')());           // <= 3rd, serve all static files
+
+    app.user(myCustomBusinessLogic2);  // <= 2nd, add more business logic
+    app.user(myCustomBusinessLogic1);  // <= 1st, Always start with business logic
 ```
 
-With generators, you can write asynchronous code in “synchronous” style - forgoing the need to deal with callback hell!
+- sane error handling.
 
-2. Superior middleware error handling (Better error handling through try/catch.)
-
-use `try/catch` instead of node's `if (err) callback(err)` type error handling.
+Use `try/catch` instead of node's callback error handling style `if (err) callback(err)`.
 
 Error handlers are just decorators. Koa handle errors automatically when you every time do `this.response.body`.
-No need to worry about error handling. No need to use domains.
 
-Express Error handling:  let's catch any error and try to do something about it
-Koa Error handling:  You handle it however and whenever you'd like
-No need for domains like Hapi.js. Domain is going to be deprecated in newer node
+No need to worry about error handling. No need to use domains(deprecated) like Hapi.js.
 
 ```js
-    app.use(function* (next) {
-        try {
-            yield* next
-        } catch (err) {
-            this.status = err.status || 500;
-            this.body = "oh no! something went wrong!";
-            console.error(err.stack);
-        }
-    });
+  app.use(function* (next) {
+    try {
+      yield* next;
+    } catch (err) {
+      this.status = err.status || 500;
+      this.body = "oh no! something went wrong!";
+      console.error(err.stack);
+    }
+  });
 ```
 
-use try/catch. All errors will be caught, unless you throw errors on different ticks like so:
-Don't do that! Write your code in generators, promises, or unnested callbacks and you'll be fine.
+Use `try/catch`. All errors will be caught, unless you throw errors on different ticks like so:
 
 ```js
 app.use(function* () {
@@ -90,7 +59,16 @@ app.use(function* () {
 })
 ```
 
-3. [Superior stream handling](http://www.jongleberry.com/koa.html)
+Don't do that! Write your code in generators, promises, or unnested callbacks and you'll be fine.
+
+Koa catches blatant errors and properly return a `500` status error to the client. App doesn’t crash. It doesn’t need a module like `forever` to restart it.
+
+You can slo call `this.throw` with any message and status code, and Koa will pass it along to the client.
+
+
+- [Superior stream handling](http://www.jongleberry.com/koa.html)
+
+Koa has better stream handling via [destroy](https://github.com/stream-utils/destroy) and [on-finished](http://github.com/jshttp/on-finished). Both koa and express use the same modules.
 
 ```js
 app.use(require('koa-compress')())
@@ -100,65 +78,373 @@ app.use(function* () {
 })
 ```
 
-Since you simply pass the stream to Koa instead of directly piping, Koa is able to handle all these cases for you. You won't need to use domains as no uncaught exceptions will ever be thrown. Don't worry about any leaks as Koa handles that for you as well. You may treat streams essentially the same as strings and buffers, which is one of the main philosophies behind Koa's abstractions. In other words, Koa tries to fix all of node's broken shit. Don't ever use .pipe() unless you know what you're doing. It's broken. Let Koa handle streams for you.
+Since you simply pass the stream to Koa instead of directly piping, Koa is able to handle all these cases for you. You won't need to use `domains` as `no uncaught exceptions` will ever be thrown. Don't worry about any leaks as Koa handles that for you as well. You may treat streams essentially the same as strings and buffers, which is one of the main philosophies behind Koa's abstractions. In other words, Koa tries to fix all of node's broken stuffs. Don't ever use `.pipe()` unless you know what you're doing. It's broken. Let Koa handle streams for you.
 
 
-Learning Koa: Promises, Generators, Modular, HTTP.
-Great Use cases: APIs (JSON 1st citizen), Promise-based model (MVC), Complex and/or unconventional sites
+- Superior, callback-less/generator-based control flow
 
-A KOA middleware is geneartor functions and just asynchronous decorators.
-Middleware are decorator functions that decorate all subsequent middleware.
-How the decorators are implemented and dispatched is an implementation detail.
+Koa uses generator engine `co`, can write asynchronous code in "synchronous" style, there's no more callback hell. Write your libraries using generators, promises, or return thunks. `co`'s control flow handling isn't about eliminating callbacks. You can also execute multiple asynchronous tasks in parallel and in series without calling a function.
 
-Express Middleware:   pass control flow to the next middleware
-Koa Middlware:           warp all subsequent middleware
+```js
+// executed three asynchronous functions in parallel.
+// No need for addtional library like `async`
+app.use(function* () {
+  yield [fn1, fn2, fn3]
+})
+```
 
-Express uses node's original req and res objects. Properties have to be overwritten for middleware to work properly. For example, if you look at the compression middleware, you'll see that res.write() and res.end() are being overwritten. In fact, a lot of middleware are written like this. And it's ugly. Thanks to Koa's abstraction of node's req and res objects, this is not a problem.
+- Lazy evaluation - yield
 
-With generators we can achieve “true” middleware. Contrasting Connect’s implementation which simply passes control through series of functions until one returns, Koa yields “downstream”, then control flows back “upstream”.
+Lazy evaluation is already possible with JavaScript using closure tricks and the like, but its greatly simplified now with `yield`. By suspending execution and resuming at will, we are able to pull values only when we need to.
+
+
+## Koa vs Express
+
+- Error handling
+
+Koa:        You handle it however and whenever you'd like
+
+Express:  catch any error and try to do something about it
+
+
+- Middleware
+
+Koa:        warp all subsequent middleware. They yields "downstream", then control flows back "upstream".
+
+Express:  pass control flow to the next middleware. pass control through series of functions until one returns,
+
+
+- Node's Request and response
+
+Koa: abstracts node's request and response objects so no monkey patching is required (provide proper stream handling), and uses generators for better async control flow.
+
+Express:  uses node's original req and res objects. Properties have to be overwritten for middleware to work properly. For example, if you look at the compression middleware, you'll see that res.write() and res.end() are being overwritten. In fact, a lot of middleware are written like this. And it's ugly. Thanks to Koa's abstraction of node's req and res objects, this is not a problem.
+
+
+- Architecture
+
+Koa: barebones and modular. It does not include any middleware, no bundled routing, no any convenience utility.
+
+express: rich. express(connect) include several middlewares like routing solution, many convenience utilities (ex: send files).
+
+
+- Koa relies less on middleware
+
+For example, instead of a "body parsing" middleware, you would instead use a body parsing function.
+
+
+## Middleware
+
+A Koa middleware is a geneartor function and an asynchronous decorator functions that decorate all subsequent middleware. How the decorators are implemented and dispatched is an implementation detail.
 
 Each middleware is a generator function, context of `this` of the middleware wrap all subsequent middleware, `yield next` actually calll its subsequent middleware.
 
 ```js
-    // think of `next` as a subapp consisting of all downstream middleware
-    // that you'd like to decorate
-    app.use(function* (subapp) {
-        // do stuff before the subapp execute <= we call this - downstream middleware
-        yield* subapp
-        // do stuff after subapp execute  <= we call this - upstream middleware
+  // think of `next` as a subapp consisting of all downstream middleware that you'd like to decorate
+  app.use(function* (subapp) {
+    // do stuff before the subapp execute <= flow downstream
+    yield* subapp
+    // do stuff after subapp execute  <= flow upstream
+  });
+```
+
+A middleware function that can do things when the request is being made, and when the response is returned. **Sequence of adding middlewares are very important.**
+
+- How middleware response
+
+Middleware that decide to respond to a request and wish to bypass downstream middleware may simply omit `yield next`. Typically this will be in routing middleware, but this can be performed by any.
+
+For example the following will respond with "two" if remove `yield next` inside generator "two" function, however all three are executed, giving the downstream "three" middleware a chance to manipulate the response.
+
+```js
+app.use(function *one(next){ // <= this function still have a chance to transform `this.body`
+  console.log('>> one');
+  yield next;
+  console.log('<< one');
+});
+
+app.use(function *two(next){
+  console.log('>> two');
+  this.body = 'two';
+  yield next;   // <= If this line is missing, the 3rd/other downstream middleware will be ignored
+  console.log('<< two');
+});
+
+app.use(function *three(next){
+  console.log('>> three');
+  yield next;
+  console.log('<< three');
+});
+```
+
+If `yield next` is missing in 2nd middleware, When the furthest downstream middleware executes `yield next`; it's really yielding to a noop function, allowing the middleware to compose correctly anywhere in the stack.
+
+
+#### Write Koa middleware
+
+Koa middleware are simple functions which return a `GeneratorFunction`, and accept another. **When the middleware is run by an "upstream" middleware, it must manually yield to the "downstream" middleware.**
+
+1. Create a regular function that can take some setup options as parameter, which allowing users to extend functionality. ex: `function logger(format) {}`.
+
+2. that function return a generator function which receive an `next` parameter. And always name your middlware, very useful for debugging purposes to assign a name. Ex: `return function *logger(next){  yield next; }`
+
+3. All non-return middleware must yield the control flow to downstream middleware by calling `yield next;`
+
+```js
+// Koa middleware syntax
+var mySession = module.exports = function(options) {
+  return function *session(next) {
+    // function details... possible use options object
+    yield next;
+  }
+}
+```
+
+Example 1: write an request `header` time and a simple logger
+
+```js
+var requestTime = function(headerName) {
+  return function *requestTime(next) {
+    var start = new Date();
+    // pause the current middleware execution
+    // yield control to the down stream middleware
+    yield next;
+    // when downstream middleware all finish,
+    // yield flow back to this middleware (resume and execute)
+    var end = new Date();
+    var ms = end - start;
+    this.set(headerName, ms + 'ms');
+  }
+};
+
+// Usage: for this particular one, need to add before route middleware to get data
+app.use(requestTime('Response-time'));
+```
+
+Example 2
+
+```js
+function logger(format) {
+  format = format || ':method ":url"';
+
+  return function *logger(next){
+    var str = format
+      .replace(':method', this.method)
+      .replace(':url', this.url);
+
+    console.log(str);
+    yield next;
+  }
+}
+
+app.use(logger());  // default
+app.use(logger(':method :url'));  // customized
+```
+
+#### Koa uses `koa-compose` module to wrap all subsequent middleware
+
+`koa-compose` compose the given middlewares (an series of middlewares) and return ONLY one middleware which wrap all subsequent middleware. "Compose" multiple middleware into a single middleware for easy re-use or exporting.
+
+```js
+// in koa-compose. partial code
+function compose(middleware){
+  return function *(next){
+    var i = middleware.length;
+    // start from last index to first index(0), Koa control flow: downstream => upstream
+    // `this` is the context is being passed when invoked. koa abstract version of req, res, ctx, response, request, etc.
+    while (i--)  next = middleware[i].call(this, next);
+    // `next` is ONLY one middleware which wrap all subsequent middleware.
+    // `yield *next`. delegate to this middlware
+    yield *next;
+  }
+}
+```
+
+`koa-compose` simply chain them together with `.call(this, next)`s, then return another function that yields the chain.
+
+```js
+function *random(next) {
+  ('/random' == this.path) ? this.body = Math.floor(Math.random()*10) : yield next;
+};
+function *backwards(next) {
+  ('/backwards' == this.path) ? this.body = 'sdrawkcab' : yield next;
+}
+function *pi(next) {
+  ('/pi' == this.path) ? this.body = String(Math.PI) : yield next;
+}
+function *all(next) {
+  yield random.call(this, backwards.call(this, pi.call(this, next)));
+}
+
+app.use(all);
+```
+
+
+
+
+
+
+Koa supports the following types of bodies:
+
+* Strings
+* Buffers
+* Streams (node)
+* JSON Objects
+
+When setting a stream as a body, Koa will automatically add error handlers so you don't have to worry about error handling.
+
+```js
+    var fs = require('fs');
+
+    app.use(function* (next) {
+      this.body = fs.createReadStream('some_file.txt');
+      // koa will automatically handle errors and leaks
+    });
+
+    app.use(function* (next) {
+        this.body = {
+          foo: 'bar'
+        };
+        // koa will automatically setup Content-type as application/json
+    })
+```
+
+checks the Content-Type of the request.
+
+We're particularly interested in type and length. Koa has getters/setters for type and length. Inferring this.request.type is a little difficult. Koa has `this.request.is()` to do this.
+
+
+In Koa, all middleware are essentially decorators for all following middleware:
+
+```js
+    app.use(function* decorator(function (subapp) {
+      // do something before subapp executes
+      yield* subapp;
+      // do something after subapp executes
+    }));
+
+    app.use(function* subapp(next) {
+      this.response.body = 'hello world';
     });
 ```
 
-**Build from the bottom up**, from bottom, add more business logic, to the top
+In Koa, error handling is done using try/catch (except with event emitters). error handlers are simply decorators that you add to the top of your middleware stack. Each Koa app is an EventEmitter instance. All errors uncaught by any middleware are sent to `app.on('error', function (err, context) {})`. This is useful for logging. However, if you create your own error handler (i.e. catching it), you will have to manually emit these events yourself.
 
 ```js
-    app.use(require('koa-compress')());     // <= last, final gzip
-    app.use(require('koa-static')());           // <= 3rd, serve all static files
-
-    app.user(myCustomBusinessLogic2);  // <= 2nd, add more business logic
-    app.user(myCustomBusinessLogic1);  // <= 1st, Always start with business logic
+function errorHandler() {
+  return function* (next) {
+    // try catch all downstream errors here
+    try {
+      yield next;
+    } catch (err) {
+      // set respose status
+      this.status = 500;
+      // set response body
+      this.body = 'internal server error';
+      // can emit on app for log
+      // this.app.emit('error', err, this);
+    }
+  };
+}
 ```
 
-A decorator wraps a function's input and/or output. Middleware are functions.
+
+Create an app that use cookie to store user's view times.
+
+  * cookie's key is `view`, you need store the view times in this cookie.
+  * every time request the server, respond must be `{time} views`.
+  * cookie need be `signed`
+
+visit /:
+=>
+respond body: 1 views
+set-cookie: view=1
+
+visit / again:
+=>
+respond body: 2 views
+set-cookie: view=2
 
 ```js
-    // pass in options to the decorator
-    function decorate(multiplier) {
-        // pass in a function to be decorated
-        return function passIn(fn) {
-            // return a `decorated` function
-            return function decoratedFn(number) {
-                // do stuff to `number`
-                number++;
-                // execute the original function
-                var output = fn(number);
-                // do stuff to `output`
-                output = multiplier + output;
-                // return the decorated value
-                return output;
-            }
-        }
+// npm install --save cookies   before using `this.cookies`
+//
+// to use signed cookie, we need to set app.keys
+app.keys= ['secret', 'keys'];
+
+app.use(function* (next) {
+  // ~~this.cookies.get('view', { signed: true })  will do the same thing
+  var time = this.cookies.get('view', { signed: true }) || 0;
+  time = parseInt(time) + 1;
+
+  this.cookies.set('view', time, { signed: true });
+  this.body = time + ' views';
+});
+```
+
+```js
+// npm install koa-session  and require it.
+var session = require('koa-session');
+// `koa-session` base on signed cookie, so we must set app.keys.
+// must come before the `session(app)` call
+app.keys= ['some secret keys'];
+
+// Wrap `app`, so you can use `this.session` in koa handler.
+app.use(session(app));
+
+app.use(function* (next) {
+  var time = ~~this.session.view || 0;
+  this.session.view = ++time;
+  this.body = time + ' views';
+});
+```
+
+
+- What is a decorator ?
+
+A decorator wraps a function's input and/or output.
+
+```js
+// pass in options to the decorator
+function decorate(multiplier) {
+  // pass in a function to be decorated
+  return function passIn(fn) {
+    // return a `decorated` function
+    return function decoratedFn(number) {
+      // do stuff to `number`
+      number++;
+      // execute the original function
+      var output = fn(number);
+      // do stuff to `output`
+      output = multiplier + output;
+      // return the decorated value
+      return output;
     }
+  }
+}
+
+var add10 = function(num) { return num + 10 }
+decorate(2)(add10)(2)  // 15
+```
+
+- Async operations
+
+`co` uses generator delegation, allowing you to write non-blocking sequential code.
+
+For example this middleware reads the filenames from ./docs, and then reads the contents of each markdown file in parallel before assigning the body to the joint result.
+
+```js
+var fs = require('co-fs');
+
+app.use(function *(){
+  var paths = yield fs.readdir('docs');
+
+  var files = yield paths.map(function(path){
+    return fs.readFile('docs/' + path, 'utf8');
+  });
+
+  this.type = 'markdown';
+  this.body = files.join('');
+});
 ```
 
 example: compressing a buffer in KOA
@@ -180,15 +466,170 @@ example: compressing a buffer in KOA
 ```
 
 
-The Request Response Pattern
 
-The key to making solid Node web applications is to realise and exploit the fact Node speaks HTTP. Those req and res objects are there for a reason: Express and similar frameworks are built on Node’s http core module, and the http module’s API is based around these request and response objects. in terms of HTTP requests and responses is HTTP “functions” that take input and transform somehow.
+### Koa Request Response Pattern
+
+The key to making solid Node web applications is to realise and exploit the fact Node speaks HTTP. Those `req` and `res` objects are there for a reason: Express and similar frameworks are built on Node’s http core module, and the http module’s API is based around these request and response objects. in terms of HTTP requests and responses is HTTP “functions” that take input and transform somehow.
 
 A Koa Context encapsulates node’s request and response objects into a single object which provides many helpful methods for writing web applications and APIs.
 
-While it’s true that Express decorates the request and response objects, Koa goes further by abstracting them. You can still get at the request and response, and there’s also a Koa request and response as well
+While it’s true that Express decorates the request and response objects, Koa goes further by abstracting them. You can still get at the request and response, and there’s also a Koa request and response as well.
 
-Notice that `this` is significant, Koa execute middleware from within a “context”, because it makes sense semantically. The current context has aliases to commonly accessed request and response properties, so the average Koa middleware has less indirection and looks lean and clean.
+Notice that `this` is significant, Koa execute middleware from within a "context", because it makes sense semantically. The current context has aliases to commonly accessed request and response properties, so the average Koa middleware has less indirection and looks lean and clean.
+
+`Context` object holds all useful information. This makes for very succinct and terse code, since almost everything you need comes from the `context` and can be found on the `this` object.
+
+- `ctx.app` is the application instance for your application.
+- `ctx.request` is the Koa Request object. Note `ctx.req` is the Node request object.
+- `ctx.response` is the Koa Response object. Note`ctx.res` is the Node response object.
+
+
+### Error Handling
+
+Error handling is nicely baked into Koa. Everything is logged to standard output (`stderr`) unless the `NODE_ENV` is "test". But you can easily create a global error hook to do your own error handling. Just do `app.on('err', function(err){})`; and you can do your stuff there.
+
+Another thing that happens automatically is that a HTTP status `500` is returned to the client. Look at example below
+
+```js
+var koa = require('koa');
+var app = module.exports = koa();
+
+// error propagation!
+app.use(function *(next){
+  try {
+    yield next;
+  } catch (err) {
+    // some errors will have .status
+    // however this is not a guarantee
+    this.status = err.status || 500;
+    this.type = 'html';
+    this.body = '<p>Something <em>exploded</em>, please contact admin.</p>';
+
+    // since we handled this manually we'll want to delegate to the regular app
+    // level error handling as well so that centralized still functions correctly.
+    this.app.emit('error', err, this);
+  }
+});
+
+// response on every single route
+// a function that responds to all the call in this application.
+app.use(function *(){
+  throw new Error('boom boom');
+});
+
+// global error handler
+app.on('error', function(err){
+  if (process.env.NODE_ENV != 'test') {
+    console.log('sent error %s to the cloud', err.message);
+  }
+});
+
+if (!module.parent) app.listen(3000);
+```
+
+The order of the calls:
+
+- The application set's up a `try..catch` around all the middlewares and requests.
+- Request comes in and is handled by the "catch all routes"-function
+- This function throws an error
+- That is caught by the `try..catch` function
+- In this function (catch block) we handle the error manually.
+- The final line of code in the `try..catch` function emits an error event
+- Which triggers the `app.on('error')` subscription. That logs the error.
+
+Let's take the testing of the error handling example for above test
+
+```js
+//  get a reference to the application. by just require the application
+var app = require('./app');
+//  sets up a supertest request object by creating a supertest agent and listening to the application.
+var request = require('supertest').agent(app.listen());
+
+describe('Errors', function () {
+  it('should catch the error', function(done){
+    request
+      .get('/')
+      .expect(500)
+      .expect('Content-Type', /text\/html/, done);
+  })
+
+  // the code we're testing both returned a nicely formatted error but also emitted an error event
+  it('should emit the error on app', function(done){
+    // now setup an subscription for the "error" event. But it should happens only once.
+    app.once('error', function (err, ctx) {
+        // Once it happens we check the .message of the passed in err-parameter.
+      err.message.should.equal('boom boom');
+      // We also get the context (ctx) passed in and can check the status of that.
+      ctx.should.be.ok;
+      done();
+    });
+
+    request
+      .get('/')
+      .end(function(){});
+  })
+})
+```
+
+
+
+
+real world possible error handling
+
+```js
+app.use(function *() {
+  this.body = "...header stuff";
+  try {
+    yield saveResults();
+  } catch (err) {
+    this.throw(400, 'Results were too awesome')
+  }
+  //could do some other yield here
+  this.body += "...footer stuff"
+});
+```
+
+
+yield is a keyword specific to generators and allows users to arbitrarily suspend functions at any yield point. yield is not a magical async function - co does all that magic behind the scenes.
+
+You can think of co's use of generators like this with node callbacks:
+
+```js
+function* () {
+  var val = yield /* breakpoint */ function (next) {
+    // #pause at the break point
+
+    // execute an asynchronous function
+    setTimeout(function () {
+      // return the value node.js callback-style
+      next(null, 1);
+    }, 100);
+  }
+
+  assert(val === 1);
+}
+```
+
+Yieldables
+You can only yield a few types of "async" things in Co. We call these "yieldables".:
+
+1. Thunks
+
+Thunks are asynchronous functions that only allow a callback:
+a neat trick is to simply wrap it in a thunk or return a thunk. You may be interested in thunkify
+
+```js
+function (done) {
+  setTimeout(function () {
+    done(/* error: */ null, true);
+  }, 100)
+}
+```
+
+2. Promises
+
+We won't show you how to write code with promises, but you can yield them!
+
 
 
 how are generators going to help us with async code, considering that they have to be synchronous?
@@ -214,6 +655,19 @@ You can use the generator by creating a generator object and call next() to get 
 
 
 ## concept
+
+```js
+app.use = function(fn){
+  // `fn.constructor.name` has to equal "GeneratorFunction", otherwise, it will throw an error
+  assert(fn && 'GeneratorFunction' == fn.constructor.name, 'app.use() requires a generator function');
+  // `fn.name` is the function name of the generator function
+  debug('use %s', fn._name || fn.name || '-');
+  // order is matter here, stack the middleware generators
+  this.middleware.push(fn);  // ex: [ [Function: one], [Function: two] ]  // function *one(){} ...
+  return this;
+};
+```
+
 
 In Express, the middleware stack was linear and you were in charge of explicitly calling the next middleware until the stack was empty and hopefully a response had been written to the response stream. Express middleware cannot change the response. ex: you cannot minify HTML responses, You cannot cache and re-serve responses, cannot execute async functions after a response is set.
 
@@ -265,6 +719,49 @@ function* two(){
 > seq.next()  // If we call it a fourth time, we get an exception:
 Error: Generator has already finished
 ```
+
+generators, callbacks, co, thunks, control flow libraries, and promises
+There are three distinct categories that they fall into:
+
+Models/Abstractions of async behavior
+Control flow management
+Data structures
+
+Generators are category 3. Genators are like arrays. It just creates a list of functions that take a callback. We can even iterate over it.
+
+```js
+// ES6
+function *doStuff() {
+  yield fs.readFile.bind(null, 'hello.txt');
+  yield fs.readFile.bind(null, 'world.txt');
+  yield fs.readFile.bind(null, 'and-such.txt');
+}
+
+// ES5 same above code
+function doStuff() {
+  return [
+    fs.readFile.bind(null, 'hello.txt'),
+    fs.readFile.bind(null, 'world.txt'),
+    fs.readFile.bind(null, 'and-such.txt')
+  ];
+}
+```
+
+Generator allow you to dynamically alter the content of the array based on stuff being passed in or to return lazy (read: infinite) sequences. But they aren't async. And they don't manage control flow.
+
+Then why would you call generators "control flow management" because you can pass one into co. `co(doStuff());`
+
+If you want to do something async, you need category 1 (an abstraction of async behavior). To make it nicer, category 2 (control flow management) can be helpful. And more often than not category 2 will require you to use known data structures from category 3.
+
+- Models/Abstractions for async behavior: thunks+callbacks, promises
+- Control flow management: co, async, spawn/ES7 async functions, Promise.all
+- Data structures: arrays, generators, objects/maps
+
+`yield` provides a hint where asynchronicity can occur. This is flow control. Also, the `try..catch` is flow control. `yield` and `try..catch` allow the generator to be async-capable. generator separate the flow control logic (which is expressed in a nice, natural, synchronous way) from the implementation details of how the generator is run to completion (which can either be synchronous or asynchronous). Generators let you think about each of those two pieces independently.
+
+That "magical" combination where promises improve the flow-control expressivity of generators... is, I think, why we already see the ES7 async / await on such a solid track even before ES6 is fully ratified. We've already realized that both promises and generators offer parts of the "solution to JS async coding", and putting them together is our best path forward.
+
+Generators are routines ("semicoroutines" to be precise) and they don't have underlying data. They just provide the strategy to iterate over the quantity of any nature.
 
 
 ###### Generator Send
@@ -478,6 +975,46 @@ var read = function (file) {
 }
 
 read('package.json')(function (err, str) { })
+```
+
+A “thunk” is basically a partially evaluated function with just the callback argument left over to be filled in. For instance, here’s how you could wrap node.js’ fs.readFile method to have a thunk API:
+
+```js
+function readFile(path) {
+return function(callback) {
+fs.readFile(path, callback);
+};
+}
+
+//  readFile(path, function(err, result) { ... });   // <= old style
+readFile(path)(function(err, result) { ... });   // <= new style
+
+// However, to co this makes a world of difference, because this:
+// now yield a function that it can execute asynchronously, and once it receives its result, it can call.next(result) to resume execution, or .throw(err) if an error occurred (resulting in an exception being thrown inside of the generator that you can catch with try-catch).
+var contents = yield readFile(path);
+```
+
+
+make APIs support both calling conventions:
+Now your async API can be used in the traditional callback style, or using co. There’s also the thunkify module to “thunkify” any existing traditional callback-style APIs.
+
+```js
+function asyncFn(arg1, arg2, callback) {
+    if(typeof callback !== "function") {
+        return function(callback) {
+            asyncFn(arg1, arg2, callback);
+        };
+    }
+    // proceed as usual
+}
+
+// or, if you’re using underscore or lodash like me:
+function asyncFn(arg1, arg2, callback) {
+    if(!_.isFunction(callback)) {
+        return _.partial(asyncFn, arg1, arg2);
+    }
+    // proceed as usual
+}
 ```
 
 Here is an example of thunk. First we have to transform the node function we want to use in a generator to a thunk. Then use this thunk in our generator as if it returned the value, that otherwise we would access in the callback. When calling the starting next(), its value will be a function, whose parameter is the callback of the thunkified function. In the callback we can check for errors (and throw if needed), or call next() with the received data.
@@ -812,190 +1349,7 @@ co(function* () {
 })()
 ```
 
-#### middleware
 
-A function that can do things when the request is being made, and when the response is returned.
-Sequence of adding middlewares are super important.
-
-Syntax: Create a regular function that can take some setup options as parameter, that function return a generator function which receive an `next` parameter.
-
-All non-return middleware must yield the control flow to downstream middleware by calling `yield next;`
-
-```
-    module.exports = function(options) {
-        return function *session(next) {
-
-        }
-    }
-```
-
-```js
-    var requestTime = function(headerName) {
-        return function *(next) {
-            var start = new Date();
-            // pause the current middleware execution
-            // yield control to the down stream middleware
-            // when downstream middleware all finish,
-            // the current middleware will resume and execute
-            yield next;
-            var end = new Date();
-            var ms = end -start;
-            this.set(headerName, ms + 'ms');
-        }
-    };
-
-    // usage
-    // For this particular one, need to add before route middleware to get data
-    app.use(requestTime('Response-time'));
-```
-
-#### Writing Koa Middleware
-
-Koa middleware are simple functions which return a `GeneratorFunction`, and accept another. When the middleware is run by an "upstream" middleware, it must manually yield to the "downstream" middleware.
-
-- Best Practices
-
-* always wrap the middleware in a function that accepts options, which allowing users to extend functionality. Ex: `function logger(format) {`
-
-* always name your middlware, very useful for debugging purposes to assign a name. Ex: `return function *logger(next){`
-
-```js
-function logger(format) {
-  format = format || ':method ":url"';
-
-  return function *logger(next){
-    var str = format
-      .replace(':method', this.method)
-      .replace(':url', this.url);
-
-    console.log(str);
-    yield next;
-  }
-}
-
-app.use(logger());
-app.use(logger(':method :url'));
-```
-
-- `koa-compose`
-
-Compose the given middleware (multiple middleware) and return middleware.
-
-Sometimes you want to "compose" multiple middleware into a single middleware for easy re-use or exporting. To do so, you may chain them together with .call(this, next)s, then return another function that yields the chain.
-
-```js
-function *random(next) {
-  if ('/random' == this.path) {
-    this.body = Math.floor(Math.random()*10);
-  } else {
-    yield next;
-  }
-};
-
-function *backwards(next) {
-  if ('/backwards' == this.path) {
-    this.body = 'sdrawkcab';
-  } else {
-    yield next;
-  }
-}
-
-function *pi(next) {
-  if ('/pi' == this.path) {
-    this.body = String(Math.PI);
-  } else {
-    yield next;
-  }
-}
-
-function *all(next) {
-  yield random.call(this, backwards.call(this, pi.call(this, next)));
-}
-
-app.use(all);
-
-// in koa-compose. partial code
-function compose(middleware){
-  return function *(next){
-    while (middleware.length--)  next = middleware[i].call(this, next);
-    yield *next;
-  }
-}
-```
-
-Here is my break down the simpler version of `koa-compose` in regular function
-
-```js
-function compose(arr) {
-  return function( fn ) {
-    var i = arr.length;
-    while( i-- ) {
-      console.log("i: ", i);   // last index => 0,  In Koa, downstream => upstream
-      console.log('this', this);  // in Koa, this is the context, which would be the `app`
-      fn = arr[i].call(this, fn);
-      console.log("fn: ", fn);  // in Koa, fn is the middleware function itself, has been decorated
-    }
-    return fn;
-  }
-}
-
-var a = function() { return "I am a"; };
-var b = function() { return "I am b"; };
-var c = function() { return "I am c"; };
-
-compose([a, b, c]);   // would return ust the function itself
-compose([a, b, c])(); // would invoke function a, b, c in reserve order  "I am c", "I am b", "I am a"
-```
-
-- Response Middleware
-
-Middleware that decide to respond to a request and wish to bypass downstream middleware may simply omit `yield next`. Typically this will be in routing middleware, but this can be performed by any.
-
-For example the following will respond with "two", however all three are executed, giving the downstream "three" middleware a chance to manipulate the response.
-
-```js
-app.use(function *(next){
-  console.log('>> one');
-  yield next;
-  console.log('<< one');
-});
-
-app.use(function *(next){
-  console.log('>> two');
-  this.body = 'two';
-  yield next;   // <= If this line is missing, the 3rd/other downstream middleware will be ignored
-  console.log('<< two');
-});
-
-app.use(function *(next){
-  console.log('>> three');
-  yield next;
-  console.log('<< three');
-});
-```
-
-If `yield next` is missing from 2nd middleware, When the furthest downstream middleware executes `yield next`; it's really yielding to a noop function, allowing the middleware to compose correctly anywhere in the stack.
-
-- Async operations
-
-`co` uses generator delegation, allowing you to write non-blocking sequential code.
-
-For example this middleware reads the filenames from ./docs, and then reads the contents of each markdown file in parallel before assigning the body to the joint result.
-
-```js
-var fs = require('co-fs');
-
-app.use(function *(){
-  var paths = yield fs.readdir('docs');
-
-  var files = yield paths.map(function(path){
-    return fs.readFile('docs/' + path, 'utf8');
-  });
-
-  this.type = 'markdown';
-  this.body = files.join('');
-});
-```
 
 - Debugging Koa
 
@@ -1047,7 +1401,7 @@ app.callback = function(){
   var mw = [respond].concat(this.middleware);
   // [`compose`](https://github.com/koajs/compose) which Compose the given middleware and return middleware.
   // API Syntax: `compose([a, b, c, ...])`
-  // returns a **Generator C** comprised of all those 4 above. [see source code below]
+  // returns a **Generator C**, generator funtion, comprised of all those 4 above. [see source code below]
   var gen = compose(mw);
   // co warps **Generator C** into **Function W** that returns a promise.
   // This is a separate function so that every co() call doesn't create a new,unnecessary closure.   [see source code below]
@@ -1060,11 +1414,24 @@ app.callback = function(){
   return function(req, res){
     res.statusCode = 404;
     var ctx = self.createContext(req, res);
+    // avoid any possible fd leak
+    //  finished library Execute a callback when a request closes, finishes, or errors  to a onFinished variable
+    //  ensure we close everything off in a nice, non-leaking fashion. Without callbacks of course
     onFinished(res, ctx.onerror);
+
+    //  `co.wrap(all)(read('./ma.js'))` equal to  `co(all(read('./ma.js')))`
+    //  here is to invoke fn.call(ctx) which is  co.wrap(gen).call(ctx)  equal to  co.wrap(gen)() and set context to ctx.
+    //  `co` will return an Promise object, so it could reject with an error
     fn.call(ctx).catch(ctx.onerror);
   }
 };
 ```
+
+`http.createServer(this.callback()).listen(...)` is fired when server is initialized. `this.callback()` is invoked, then `fn` is a series of middlewares (generators) which is ready to transform the `req` and `res`. But the Node callback **Function F** is not fired.
+
+Node signature callback **Function F** `return function(req, res){}` is fired when every request comes in.
+
+First, it will create context. context will contain an object with those properties `app, req, res, ctx, response, request, originalUrl, cookies, accept, state`. `context.request` and `context.response` are the two koa objects and very useful one.
 
 ```js
 // [koa-compose]((https://github.com/koajs/compose)) package
@@ -1615,6 +1982,8 @@ In other words, generator iterators can be automatically used with for-of loops 
 
 #### Co API
 
+[Co wiki](https://github.com/tj/co/wiki) list of all co-ready modules.
+
 1. `co(fn*).then( val => )`
 
 Returns a promise that resolves a generator, generator function, or any function that returns a generator.
@@ -1885,7 +2254,102 @@ Cascading in Koa means, that the control flows through a series of middlewares. 
 
 When a new request comes in, it starts to flow through the middlewares, in the order you wrote them. When a middleware hits a yield next, it will go to the next middleware and continue that where it was left off. When there is no more middleware, we downstreamed, now we're starting to step back to the previous one (just like a stack). Then the first one ends, and we are streamed upwards successfully!
 
-1. Context
+1. Application
+
+A Koa application is an object containing an array of middleware generator functions which are composed and executed in a stack-like manner upon request. It includes methods for common tasks like content-negotiation, cache freshness, proxy support, and redirection among others. It has no middleware are bundled.
+
+Application constructor is also Inherited from `Emitter.prototype`. `Application.prototype.__proto__ = Emitter.prototype;`. It could emit events.
+
+##### Cascading
+
+Koa middleware cascade: However with generators we can achieve "true" middleware. Contrasting Connect's implementation which simply passes control through series of functions until one returns, Koa yields "downstream", then control flows back "upstream".
+
+
+Application Settings, which defined in `Application`'s constructor.
+
+- app.name
+
+optionally give your application a name
+
+- app.env
+
+defaulting to the `NODE_ENV` or "development"
+
+- app.proxy
+
+when true proxy header fields will be trusted
+
+- app.subdomainOffset
+
+offset of .subdomains to ignore, default to `2`
+
+- app.listen(...)
+
+A Koa application is not a 1-to-1 representation of a HTTP server. One or more Koa applications may be mounted together to form larger applications with a single HTTP server.
+
+`app.listen(3000)` is a simple sugar for `http.createServer(app.callback()).listen(3000);`
+
+This means you can spin up the same application as both HTTP and HTTPS or on multiple addresses:
+
+```js
+var http = require('http');
+var koa = require('koa');
+var app = koa();
+http.createServer(app.callback()).listen(3000);
+http.createServer(app.callback()).listen(3001);
+```
+
+- app.use(function)
+
+Add the given middleware function to this application. Expect a generator function, then return Application itself.
+
+- app.callback()
+
+Return a request handler callback function suitable for the node's native http server,`http.createServer()` method to handle a request. You may also use this callback function to mount your koa app in a Connect/Express app.
+
+- app.keys=
+
+Set signed cookie keys. These are passed to [KeyGrip](https://github.com/jed/keygrip), however you may also pass your own `KeyGrip` instance. For example the following are acceptable:
+
+```js
+app.keys = ['im a newer secret', 'i like turtle'];
+app.keys = new KeyGrip(['im a newer secret', 'i like turtle'], 'sha256');
+```
+
+These keys may be rotated and are used when signing cookies with the `{ signed: true }` option:
+
+```js
+this.cookies.set('name', 'tobi', { signed: true });
+```
+
+- app.inspect()
+
+Return JSON representation. We only bother showing settings. `subdomainOffset` and `env`
+
+##### Error Handling
+
+By default outputs all errors to stderr unless **NODE_ENV** is "test". To perform custom error-handling logic such as centralized logging you can add an "error" event listener:
+
+```js
+app.on('error', function(err){
+  log.error('server error', err);
+});
+```
+
+If an error in the req/res cycle and it is _not_ possible to respond to the client, the `Context` instance is also passed:
+
+```js
+app.on('error', function(err, ctx){
+  log.error('server error', err, ctx);
+});
+```
+
+When an error occurs _and_ it is still possible to respond to the client, aka no data has been written to the socket, Koa will respond appropriately with a 500 "Internal Server Error". In either case an app-level "error" is emitted for logging purposes.
+
+
+
+
+2. Context
 
 A Koa Context encapsulates node's `request` and `response` objects into a single object which provides many helpful methods for writing web applications and APIs. A `Context` is created per request, and is referenced in middleware as the receiver, or the `this` identifier, as shown in the following snippet:
 
@@ -2345,6 +2809,8 @@ If `app.subdomainOffset` is 3, this.subdomains is ["tobi"].
 
 #### Content Negotiation
 
+Content negotiation simply means that you can have one route that answers for request for several content types. If you ask for HTML you'll get HTML back and JSON when you ask for JSON etc.
+
   Koa's `request` object includes helpful content negotiation utilities powered by [accepts](http://github.com/expressjs/accepts) and [negotiator](https://github.com/federomero/negotiator). These utilities are:
 
 - `request.accepts(types)`
@@ -2357,6 +2823,93 @@ If no types are supplied, __all__ acceptable types are returned.
 If multiple types are supplied, the best match will be returned. If no matches are found, a `false` is returned, and you should send a `406 "Not Acceptable"` response to the client.
 
 In the case of missing accept headers where any type is acceptable, the first type will be returned. Thus, the order of types you supply is important.
+
+```js
+
+var koa = require('koa');
+var app = module.exports = koa();
+
+var tobi = {
+  _id: '123',
+  name: 'tobi',
+  species: 'ferret'
+};
+
+var loki = {
+  _id: '321',
+  name: 'loki',
+  species: 'ferret'
+};
+
+var users = {
+  tobi: tobi,
+  loki: loki
+};
+
+// content negotiation middleware.
+// note that you should always check for
+// presence of a body, and sometimes you
+// may want to check the type, as it may
+// be a stream, buffer, string, etc.
+
+app.use(function *(next){
+  yield next;
+
+  // no body? nothing to format, early return
+  if (!this.body) return;
+
+  // Check which type is best match by giving
+  // a list of acceptable types to `req.accepts()`.
+  var type = this.accepts('json', 'html', 'xml', 'text');
+
+  // not acceptable
+  if (type === false) this.throw(406);
+
+  // accepts json, koa handles this for us,
+  // so just return
+  if (type === 'json') return;
+
+  // accepts xml
+  if (type === 'xml') {
+    this.type = 'xml';
+    this.body = '<name>' + this.body.name + '</name>';
+    return;
+  }
+
+  // accepts html
+  if (type === 'html') {
+    this.type = 'html';
+    this.body = '<h1>' + this.body.name + '</h1>';
+    return;
+  }
+
+  // default to text
+  this.type = 'text';
+  this.body = this.body.name;
+});
+
+// filter responses, in this case remove ._id
+// since it's private
+
+app.use(function *(next){
+  yield next;
+
+  if (!this.body) return;
+
+  delete this.body._id;
+});
+
+// try $ GET /tobi
+// try $ GET /loki
+
+app.use(function *(){
+  var name = this.path.slice(1);
+  var user = users[name];
+  this.body = user;
+});
+
+if (!module.parent) app.listen(3000);
+```
 
 - request.accepts(types)   (Method)
 
@@ -2843,4 +3396,196 @@ curl -X POST -H "Content-Type: application/json" -d '{"username":"abbe@gmail.com
 
 # see the results
 curl http://localhost:3000/user -v
+```
+
+
+Another co-mock mongodb store and retrieve example. The [monk interface](https://github.com/tj/monk) is exposed through the [co-monk](https://github.com/tj/co-monk) library. This is awesome, since that means that we can have interaction with our user collection like this:
+
+Insert : yield users.insert(user);
+Find all: var res = yield users.find({});
+Find one: var res = yield users.findOne({_id:id});
+Update via id: yield users.updateById(id, user);
+Update via other property: yield users.update({name: 'Marcus'}, user);
+Delete: yield users.remove({_id:id});
+
+```js
+// Create the application
+var koa = require('koa');
+var route = require('koa-route');
+var parse = require('co-body');
+var app = module.exports = koa();
+
+// Set up monk stuff, via co-monk
+//  require the co-monk library and store that in a variable called wrap. That can then be used to create a collection-like variable for easy access
+var monk = require('monk');
+var wrap = require('co-monk');
+var db = monk('localhost/koa_users');
+var users = wrap(db.get('users'));
+
+// For testing, let's expose the users collection
+module.exports.users = users;
+
+// Set up some routes
+app.use(route.post('/user', create));
+app.use(route.get('/user', list));
+app.use(route.get('/user/:id', getUser));
+app.use(route.put('/user/:id', updateUser));
+app.use(route.del('/user/:id', deleteUser));
+
+// And here is route handling
+// I haven't included error handling but trust the
+// built in Koa default error handling
+// (returns 500 and logs to console)
+function *create() {
+    var user = yield parse(this);
+    user.created_on = new Date;
+
+    var u = yield users.insert(user);
+    this.body  = u;
+    this.set("Location", "/user/" + user._id);
+    this.status = 201;
+};
+
+function *list() {
+    var res = yield users.find({});
+    this.body = res;
+    this.status = 200;
+};
+
+function *getUser(id){
+    var res = yield users.findOne({_id:id});
+    this.body = res;
+    this.status = 200;
+};
+
+function *updateUser(id){
+    var user = yield parse(this);
+    yield users.updateById(id, user);
+    this.status = 204;
+};
+
+function *deleteUser(id){
+    var res = yield users.remove({_id:id});
+    var u = yield users.findOne({_id:id});
+    console.log(u);
+    this.status = 200;
+};
+
+// fire the app up
+app.listen(3000);
+console.log("Listening on http://localhost/users");
+
+```
+
+Here is the test code for above
+
+We're using the co-library here to wrap the functionality of our call in a generator (or "Generator based flow-control goodness for nodejs (and soon the browser), using thunks or promises, letting you write non-blocking code in a nice-ish way." from the npm-site).
+
+This is great because that means that we can yield stuff to get the "async" behaviour we want and use co-monk again.
+
+Note that the co-function takes the done-variable as parameter; co(...)(done); This is a bit of trickery that first tripped me up. I'm not sure I understand it fully but this works at least. And it makes sense in a way to; first to this (inside of the co-function) and then call done. A bit like promises, maybe.
+
+```js
+var app = require('./app');
+var co = require('co');
+var should = require('should');
+
+var request = require('supertest').agent(app.listen());
+var users = app.users;
+
+describe('CRUD Api for storing stuff in MongoDb with monk and co-monk', function(){
+    var removeAll = function(done){
+        co(function *(){
+            yield users.remove({});
+        })(done);
+    };
+
+    beforeEach(function (done) {
+        removeAll(done);
+    });
+
+    after(function (done) {
+        removeAll(done);
+    });
+
+    var user  = { name: 'marcus', password : 'tobi'};
+    it('creates a new user', function(done){
+        request
+            .post('/user')
+            .send(user)
+            .expect(201)
+            .end(done);
+    });
+
+    it('gets an existing user', function(done){
+        co(function *(){
+            // Inserts the user into the mongo db
+            var newUser = yield users.insert(user);
+
+            // Calls our API via supertest
+            request
+                .get('/user/' + newUser._id)
+                .set('Accept', 'application/json')
+                .expect(200)
+                .end(function(err, res){
+                    // Validates the response
+                    res.body.name.should.equal('marcus');
+                    res.body.password.should.equal('tobi');
+                });
+        })(done);
+    });
+
+    it('updates an existing user', function(done){
+        co(function *(){
+            var newUser = yield users.insert(user);
+            newUser.name = 'Hugo';
+            request
+                .put('/user/' + newUser._id)
+                .send(user)
+                .expect(204);
+        })(done);
+    });
+
+    it('deletes an existing user', function(done){
+        co(function *(){
+            var newUser = yield users.insert(user);
+
+            request
+                .del('/user/' + newUser._id)
+                .expect(200);
+        })(done);
+    });
+});
+```
+
+Look at this post and take some idea  http://www.marcusoft.net/2014/04/mnb-heroku.html
+
+
+If run into any Error like `yield users.remove({});  SyntaxError: Unexpected identifier`
+
+The "Unexpected identifier" is not really users (in my example), but rather that yield is not valid outside a generator function. To fix: We can create an anonymous generator function by wrapping the code in "function *(){ // code }", then use `co` to call, drive through the function.  ` "co(function *(){// code})();"`
+
+Co is a neat little library that lets you "write non-blocking code in a nice-ish way". That's all very complicated if you ask me. But let's show how this co could be used to help us fix the error we ran into before:
+
+```js
+var co = require('co');
+var monk = require('monk');
+var should = require('should');
+var wrap = require('co-monk');
+var db = monk('localhost/testers');
+var users = wrap(db.get('users'));
+
+co(function *(){   // <= wrapped in a generator function (note the asterisk). . This (anonymous) generator function is then passed to the co-library constructor function.
+    yield users.remove({});
+
+    yield users.insert({ name: 'Tobi', species: 'ferret' });
+    yield users.insert({ name: 'Loki', species: 'ferret' });
+    yield users.insert({ name: 'Jane', species: 'ferret' });
+
+    var res = yield users.findOne({ name: 'Tobi' });
+    res.name.should.equal('Tobi');
+
+    var res = yield users.find({ species: 'ferret' });
+    res.should.have.length(3);
+})(); //  Finally we also invoke the function that co-returns, right away, hence the ")();
 ```
