@@ -311,6 +311,90 @@ express: rich. express(connect) include several middlewares like routing solutio
 For example, instead of a "body parsing" middleware, you would instead use a body parsing function.
 
 
+## Source Code
+
+- Application.js. understanding the meat of koa
+
+When a request comes in, **Function F** (callback return function) is invoked and it takes node signature callback `return function(req, res){}`.
+ **Function W** (co wrapped single middleware) is evaluated at the last line: `fn.call(ctx).catch(ctx.onerror)`.
+ **Function W** will return a promise that is returned by `co` and its argument `fn.apply(this, arguments)` is actually `Iterator C` as we invoke fn (`Generator C`). This is exactly what `koa-compose` does, which Koa internally uses to create and dispatch the middleware stack.
+
+```js
+// `app.callback` will return an Function for `http.createServer`
+// http.createServer(this.callback()).listen(...)
+
+//Return a request handler callback for node's native http server.
+app.callback = function(){
+  // adds internal respond generator to `this.middleware`. Now mw is [respond, MW1, MW2, ...].
+  var mw = [respond].concat(this.middleware);
+  // [`compose`](https://github.com/koajs/compose) which Compose the given middleware array and return only One middleware.
+  // API Syntax: `compose([a, b, c, ...])`
+  // returns a **Generator C**, generator funtion, comprised of all those 4 above
+  // **Function W**   co.wrap = function (fn) {  return function () { return co.call(this, fn.apply(this, arguments)); };   }
+  var gen = compose(mw);
+  // `co` warps **Generator C** into **Function W** that returns a promise.
+  // This is a separate function so that every co() call doesn't create a new,unnecessary closure.
+  var fn = co.wrap(gen);
+  var self = this;
+
+  if (!this.listeners('error').length) this.on('error', this.onerror);
+
+  //will return **Function F**
+  return function(req, res){
+    res.statusCode = 404;
+    // create context, context will contain an object with lots of useful properties
+    // ex: `app, req, res, ctx, response, request, originalUrl, cookies, accept, state`
+    var ctx = self.createContext(req, res);
+    // avoid any possible fd leak
+    // "finished" module execute a callback when a request closes, finishes, or errors to a `onFinished` function
+    // ensure we close everything off in a nice, non-leaking fashion. Without callbacks of course
+    onFinished(res, ctx.onerror);
+
+    //  `co.wrap(all)(read('./ma.js'))` equal to  `co(all(read('./ma.js')))`
+    //  here is to invoke fn.call(ctx) which is  co.wrap(gen).call(ctx)  equal to  co.wrap(gen)() and set context to ctx.
+    //  `co` will return an Promise object, so it could reject with an error
+    fn.call(ctx).catch(ctx.onerror);
+  }
+};
+```
+
+`http.createServer(this.callback()).listen(...)` is fired when server is initialized but the node callback **Function F** is not fired. `this.callback()` is invoked, then `fn` is a series of middlewares (generators) which is ready to transform the `req` and `res`.
+
+
+- [co](https://github.com/tj/co) module
+
+In `onFulfilled`, we call `Iterator C`'s `next` function. There is only one yield in `Generator C` and it delegates Generator `prev`.
+
+After the loop, `prev` is `Iterator respond` and `Generator respond`'s argument `next` is `Iterator MW1`. The same thing, `Generator MW1`'s argument next is `Iterator MW2`, `Generator MW2`'s argument next is `Iterator MW3`, `Generator MW3`' doesn't have any arguments.
+
+The difference between `Generator respond` and other generators is that it delegates `Generator MW1`, which means `yield *next` will run `Generator MW1` and go back to `onFulfilled` function after `yield next`.
+
+As `yield next` in `Generator MW1`, it returns `Iterator MW2` as ret's value so after ret is passed to `co`'s next function, `ret.done` is `false` and in `toPromise` function,  ret's value `Iterator MW2` is passed to `co` function again like 1st time.
+
+Iterator MW2's `next()` returns `Iterator MW3` when see yield in `Generator MW2`. `ret.done` is still false so `Iterator S3` is passed to `co` function, this time `ret.done` is true as no `yield` in `Generator MW3`.
+
+Finally we can resolve this Promise. Back to the last level, it calls value.then(onFulfilled, onRejected) which Iterator `MW2's next()`, `ret.done` is true as well because only one `yield` in `Generator MW`2. And then back to `Iterator MW1` and Iterator respond.
+
+
+- [koa-compose]((https://github.com/koajs/compose)) module
+
+```js
+// Compose `middleware` returning a fully valid middleware comprised of all those which are passed.
+function compose(middleware){  // <= middleware is Array
+  // **Generator C**
+  return function *(next){
+    if (!next) next = noop();
+    var i = middleware.length;
+    while (i--) {
+      next = middleware[i].call(this, next);
+    }
+    yield *next;
+  }
+}
+
+function *noop(){}
+```
+
 ## API
 
 `koa`, the module itself, lightweight, it's just 4 files, averaging around 300 lines. Koa follows the tradition that every program you write must do one thing and one thing well. So you'll see, every good koa module (and every node module should be) is short, does one thing and builds on top of other modules heavily. You should keep this in mind and hack according to this. It will benefit everybody, you and others reading your code. You add the required features in the shape of small modules from npm to your app, and it does exactly what you need and in a way you need it.
@@ -1581,6 +1665,8 @@ To use a generator, execute the generator function - which in turn returns an it
 
 `yield ;` is not allowed, the `yield` keyword requires a value, `yield null;` would work in this case.
 
+Generator iterators can be automatically used with `for-of` loops and comprehensions.
+
 `function* () {}` or `.map(function* () {})` is a regular function. The only difference is return object. Invoking `function* () {}` would return a generator.  That means you can pass `function* () {}` basically anywhere a regular function can go, but just make sure you realize that a generator is returend.
 
 ```js
@@ -1627,13 +1713,32 @@ console.log(seq.next()); // returns 3
 Generator does not control by itself, must control by other module. So use well-structure generator Control Flow library to call `next` method automatically for you. Ex: `co`
 
 
+#### Generator vs Generator function
+
+- Generators
+
+Essentially iterator functions that allow their execution to be paused and resumed through the use of `yield`. `yield` keyword essentially says return this value for this iteration and I'll pick up where I left off when you call `next()` on me again.
+
+Generators are lightweight co-routines for JavaScript. They allow a function to be suspended and resumed via the `yield` keyword.
+Their ability to be paused and resumed is what makes them so powerful at managing flow control.
+
+- Generator functions
+
+Special functions in that they don't execute the first time they're call but instead return an iterator object with a few methods on it and the ability to be used in `for-of` loops and array comprehensions.
+
+Generator functions have a special syntax: `function* ()`. With this superpower, we can also suspend and resume asynchronous operations using constructs such as promises or “thunks” leading to “synchronous-looking” asynchronous code.
+
+Any generator or generator function you can pass into `co` can be `yielded` as well. This should generally be avoided as we should be moving towards spec-compliant Promises instead.
+
+
 #### Generator methods
 
-generator objects only as a producer of a sequence of values, where information only goes one way - from the generator to you. It turns out that you can also send values to it by giving next() a parameter
+generator objects only as a producer of a sequence of values, where information only goes one way - from the generator to you. It turns out that you can also send values to it by giving next() a parameter.
 
 - next()
 
-Resume the execution along with passing an argument. If nothing is passed, then undefined gets passed as the first argument.
+This continues the next iteration of the generator. Resume the execution along with passing an argument. If nothing is passed, then undefined gets passed as the first argument.
+If this is not a generator object, Throw Error Call `this.[[Send]]` with single argument undefined Return the result
 
 ```js
 function* consumer(){
@@ -1657,7 +1762,9 @@ Generator can send and receive values from a generator. `yield` statement can re
 
 - throw()
 
-`throw()` an error onto a generator object, the error actually propagates back up into the code of the generator, meaning you can actually use `try/catch` statements to catch it. So, if we add try/catches to the last example:
+This throws an exception INTO the generator causing the generator to throw the exception as though it came from the last `yield`statement.
+
+`throw()` an error onto a generator object, the error actually propagates back up into the code of the generator, meaning you can actually use `try/catch` statements to catch it. If this is not a generator object, Throw Error Call `this.[[Throw]]` with the first argument Return the result. So, if we add try/catches to the last example:
 
 ```js
 var c = consumer()
@@ -1668,6 +1775,21 @@ c.throw(new Error('blarg!'))  // You threw an error but I caught it. // Error: b
 ```
 
 throw an error or exception at any step. It makes error handling much easier. Throwing an error can result in stopping execution of the file, if it is not handled somewhere. The simplest way to handle an error is to use a try and catch statement. This method takes a single argument which can be anything.
+
+
+- send()
+
+This sends a value into the generator treating it as the last value of `yield` and continues the next iteration
+If this is not a generator object, Throw Error Call `this.[[Send]]` with the first argument Return the result
+
+- close
+
+This forces the generator to return execution and calls any finally code of the generator which allows final error handling to be triggered if needed.
+If this is not a generator object, Throw Error Call this.[[Close]] with no arguments Return the result
+
+- iterate
+
+Every generator is an iterator object, and it has an `iterate` method whose behavior is: Return this
 
 
 #### Generator Benefits
@@ -1817,7 +1939,9 @@ if (bar.next().value == 'B') {
 
 ## Thunk
 
-A "thunk" is a function that returns a callback as opposed to invoke it. The callback has the same signature as your typical node callback function (i.e. error is the first argument). A “thunk” is basically a partially evaluated function with just the callback argument left over to be filled in.
+A "thunk" is a function that take a single parameter callback then returns another callback that they are wrapping as opposed to invoke it. The callback has the same signature as your typical node callback function (i.e. error is the first argument). A “thunk” is basically a partially evaluated function with just the callback argument left over to be filled in.
+
+This creates a closure that allows the calling code to instantiate the function passing in its callback so that it can be told when the method is complete.
 
 Using Thunk write code in synchronous fashion that runs asynchronously
 
@@ -1869,7 +1993,79 @@ gen.next().value(function (err, data) {
 })
 ```
 
+In Node land, everything is set up to work with callbacks. It is our lowest-level asynchronous abstraction. However, callbacks don’t work well with generators but `yield` will.
+
+First, we need to convert asynchronous Node-style callback functions into thunks, a subroutine value we can reference until its ready to be executed:
+
+```js
+function thunkify (nodefn) { // [1] Take an existing Node callback style function as input.
+  return function () { // [2] Return a function that converts Node-style into a thunk-style.
+    var args = Array.prototype.slice.call(arguments)
+    // [3] Enable the asynchronous function to be execute independently from its initial setup by delaying the execution until its returned function is called.
+    return function (cb) {
+      args.push(cb)
+      nodefn.apply(this, args)
+    }
+  }
+}
+```
+
+To explain the function above, this is how it works
+
+```js
+var fs = require('fs')
+var readFile = thunkify(fs.readFile) // [1] Turn fs.readFile into a thunk-style function.
+// [2] using the same fs.readFile API without passing the callback argument. No asynchronous operation is performed yet.
+var readAsyncJs = readFile('./async.js')
+readAsyncJs(function (er, buf) { ... }) // [3] Perform the asynchronous operation and callback.
+```
+
+Then, we could use in `co` control flow library and do something like this
+
+```js
+co(function* () {
+  try {
+    console.log("Starting")
+    var file = yield readFile("./async.js") // [1] Wait for the result of async.js to come back before continuing.
+    console.log(file.toString())
+  } catch (er) {
+    console.error(er)
+  }
+})
+```
+
+
 ## Co
+
+Co is a generator based flow-control module for node. Koa is built on `co`, which handles the delegation to generators and gives Koa its nice syntax.
+
+Co (and Koa) have a really simple way to handle this; just `yield` an array or object, where each element of the array or property of the object is either a generator or a Promise. When Co encounters this, it triggers all the promises/generators at the same time, waits for the results to return, and keeps things in their correct order.
+
+Co handles all of the generator calling code for you. Simply put a`yield` before anything that evaluates to something.
+
+Calling `co()` does not execute the code inside of it, `co` return a function that you need to call to start the generator.
+
+Why coroutines rocks? coroutines run each “light-weight thread” with its own stack. The implementations of these threads varies but typically they have a relatively small initial stack size (~4kb), growing when required.
+
+Why is this so great? Error handling! Since we pass the generator to the `co()` function, and all yields delegate to the caller, extremely robust error handling can be delegated to Co.
+
+Co can "throw" exceptions back to their origin as shown below, meaning you can use `try/catch` as the language intended, or leave them out and utilize the final Co callback to handle the error.
+
+```js
+co(function *(){
+  try {
+    var str = yield read(‘Readme.md’)
+  } catch (err) {
+    // whatever
+  }
+  str = str.replace(‘Something’, ‘Else’)
+  yield write(‘Readme.md’, str)
+})
+```
+
+[Co wiki](https://github.com/tj/co/wiki) list of all co-ready modules.
+
+#### understanding co
 
 Koa uses co control flow engine. Internally wrapping generator `yield` expression inside `co` function.
 
@@ -1960,548 +2156,9 @@ co(function* () {
 Warning: If you yield* something that isn't a generator, you'll get an error like the following:
 `TypeError: Object function noop(done) { done(); } has no method 'next'`
 
+## Context is important
 
-
-
-
-
-- Debugging Koa
-
-built with support the DEBUG environment variable from [`debug`](https://github.com/visionmedia/debug) which provides simple conditional logging. For example to see all koa-specific debugging information just pass `DEBUG=koa*` and upon boot you'll see the list of middleware used, among other things.
-
-```bash
-DEBUG=koa* node --harmony examples/simple
-
-# output
-  koa:application use responseTime +0ms
-  koa:application use logger +4ms
-  koa:application use contentLength +0ms
-  koa:application use notfound +0ms
-  koa:application use response +0ms
-  koa:application listen +0ms
-```
-
-Since JavaScript does not allow defining function names at runtime, you can also set a middleware's name as `._name`. This useful when you don't have control of a middleware's name. For example:
-
-```js
-var path = require('path');
-var static = require('koa-static');
-
-var publicFiles = static(path.join(__dirname, 'public'));
-publicFiles._name = 'static /public';
-
-app.use(publicFiles);
-```
-
-Now, instead of just seeing "static" when debugging, you will see:
-
-```bash
-# console output
-koa:application use static /public +0ms
-```
-
-
-#### Source Code
-
-When a request coming in Function F (callback return) is invoked and Function W is evaluated at the last line: `fn.call(ctx).catch(ctx.onerror)`. Fucntion W will return a promise that is returned by co and its argument `fn.apply(this, arguments)` is actually `Iterator C` as we invoke fn (`Generator C`). This is exactly what `koa-compose` does, which Koa internally uses to create and dispatch the middleware stack.
-
-```js
-// `app.callback` will return an Function for `http.createServer`
-// http.createServer(this.callback()).listen(...)
-
-//Return a request handler callback for node's native http server.
-app.callback = function(){
-  // it adds respond (another generator) to this.middleware. Now mw is [respond, MW1, MW2, ...].
-  var mw = [respond].concat(this.middleware);
-  // [`compose`](https://github.com/koajs/compose) which Compose the given middleware and return middleware.
-  // API Syntax: `compose([a, b, c, ...])`
-  // returns a **Generator C**, generator funtion, comprised of all those 4 above. [see source code below]
-  var gen = compose(mw);
-  // co warps **Generator C** into **Function W** that returns a promise.
-  // This is a separate function so that every co() call doesn't create a new,unnecessary closure.   [see source code below]
-  var fn = co.wrap(gen);
-  var self = this;
-
-  if (!this.listeners('error').length) this.on('error', this.onerror);
-
-  //will return **Function F**
-  return function(req, res){
-    res.statusCode = 404;
-    var ctx = self.createContext(req, res);
-    // avoid any possible fd leak
-    //  finished library Execute a callback when a request closes, finishes, or errors  to a onFinished variable
-    //  ensure we close everything off in a nice, non-leaking fashion. Without callbacks of course
-    onFinished(res, ctx.onerror);
-
-    //  `co.wrap(all)(read('./ma.js'))` equal to  `co(all(read('./ma.js')))`
-    //  here is to invoke fn.call(ctx) which is  co.wrap(gen).call(ctx)  equal to  co.wrap(gen)() and set context to ctx.
-    //  `co` will return an Promise object, so it could reject with an error
-    fn.call(ctx).catch(ctx.onerror);
-  }
-};
-```
-
-`http.createServer(this.callback()).listen(...)` is fired when server is initialized. `this.callback()` is invoked, then `fn` is a series of middlewares (generators) which is ready to transform the `req` and `res`. But the Node callback **Function F** is not fired.
-
-Node signature callback **Function F** `return function(req, res){}` is fired when every request comes in.
-
-First, it will create context. context will contain an object with those properties `app, req, res, ctx, response, request, originalUrl, cookies, accept, state`. `context.request` and `context.response` are the two koa objects and very useful one.
-
-```js
-// [koa-compose]((https://github.com/koajs/compose)) package
-// Compose `middleware` returning a fully valid middleware comprised of all those which are passed.
-function compose(middleware){  // <= middleware is Array
-  // **Generator C**
-  return function *(next){
-    if (!next) next = noop();
-    var i = middleware.length;
-    while (i--) {
-      next = middleware[i].call(this, next);
-    }
-    yield *next;
-  }
-}
-
-function *noop(){}
-```
-
-```js
-//co package
-co.wrap = function (fn) {
-  // **Function W**
-  return function () {
-    return co.call(this, fn.apply(this, arguments));
-  };
-};
-```
-
-Here is my break down the simpler version of `co-wrap`, how to use it
-In `co`, `co.wrap` wrap the given generator `fn` into a function that returns a promise.
-
-```js
-var wrap = function (fn) {
-  return function () {
-    return wrap.call(this, fn.apply(this, arguments));
-  };
-};
-var a = function(name) { return 'my name is ' + name; };
-var b = wrap(a);
-// a.call(this, a.apply(this, ['matt']))
-b('matt');
-```
-
-In `onFulfilled`, we call `Iterator C`'s `next` function. There is only one yield in `Generator C` and it delegates Generator `prev`.
-
-After the loop, `prev` is `Iterator respond` and `Generator respond`'s argument `next` is `Iterator MW1`. The same thing, `Generator MW1`'s argument next is `Iterator MW2`, `Generator MW2`'s argument next is `Iterator MW3`, `Generator MW3`' doesn't have any arguments.
-
-The difference between `Generator respond` and other generators is that it delegates `Generator MW1`, which means `yield *next` will run `Generator MW1` and go back to `onFulfilled` function after `yield next`.
-
-As yield next in Generator MW1, it returns Iterator MW2 as ret's value so after ret is passed to co's next function, ret.done is false and in toPromise function,  ret's value Iterator MW2 is passed to co function again like 1st time.
-
-Iterator MW2's next() returns Iterator MW3 when see yield in Generator MW2. ret.done is still false so Iterator S3 is passed to co function, this time ret.done is true as no  yield in Generator MW3.
-
-Finally we can resolve this Promise. Back to the last level, it calls value.then(onFulfilled, onRejected) which Iterator MW2's next(), ret.done is true as well because only one yield in Generator MW2. And then back to Iterator MW1 and Iterator respond.
-
-
-## Advanced Koa
-
-1. `yield` could handle array of async operation.
-
-```js
-var readFile = function(dir) {
-  return function(fn) {
-    fs.readFile(dir, fn)
-  }
-};
-
-app.use(function* () {
-  var arr = yield ['1.txt', '2.txt', '3.txt'].map(function(path) {
-    return readFile(path)
-  })
-  this.body = arr.join(',')
-})
-```
-
-What is any error happened in Async? Learn generator's `throw` method.
-
-The `throw` function’s behavior is: If this is not a generator object, Throw Error Call `this.[[Throw]]` with the first argument Return the result
-
-We could add our custom `try/catch` error block, koa also added `app.onerror`, `404` or `500` default etc. But recommend to handle the error yourself.
-
-```js
-// follow the previous code block
-// handle error in one place, all `yield` error would be caught
-// mix with `this.throw` and `new Error()` to organize errors
-app.use(function* (next) {
-  try {
-    yield next
-  } catch(e) {
-    // handleErrors(e);  // complex logic to handle errors
-    return this.body = e.message || "I'm dead"
-  }
-});
-app.use(function* () {
-  var arr = yield ['4.txt', '2.txt', '3.txt'].map(function(path) {
-    // 4.txt is not existed
-    return readFile(path)
-  })
-  this.body = arr.join(',')
-})
-```
-
-2. Asynchronous control flow
-
-In Node land, everything is set up to work with callbacks. It is our lowest-level asynchronous abstraction. However, callbacks don’t work well with generators but yield will. If we invert how we have been using generators and use the built-in communications channel, we can write synchronous looking asynchronous code!
-
-First, we need to convert asynchronous Node-style callback functions into thunks, a subroutine value we can reference until its ready to be executed:
-
-```js
-function thunkify (nodefn) { // [1] Take an existing Node callback style function as input.
-  return function () { // [2] Return a function that converts Node-style into a thunk-style.
-    var args = Array.prototype.slice.call(arguments)
-    // [3] Enable the asynchronous function to be execute independently from its initial setup by delaying the execution until its returned function is called.
-    return function (cb) {
-      args.push(cb)
-      nodefn.apply(this, args)
-    }
-  }
-}
-```
-
-To explain the function above, this is how it works
-
-```js
-var fs = require('fs')
-var readFile = thunkify(fs.readFile) // [1] Turn fs.readFile into a thunk-style function.
-// [2] Setup readFile to read async.js using the same fs.readFile API without passing the callback argument. No asynchronous operation is performed yet.
-var readAsyncJs = readFile('./async.js')
-readAsyncJs(function (er, buf) { ... }) // [3] Perform the asynchronous operation and callback.
-```
-
-Then, we could use and do something like this
-
-```js
-run(function* () {
-  console.log("Starting")
-  var file = yield readFile("./async.js") // [1] Wait for the result of async.js to come back before continuing.
-  console.log(file.toString())
-})
-```
-
-finally, let’s write a run function, which takes a generator function and handles any yielded thunks:
-
-```js
-function run (genFn) {
-  var gen = genFn() // [1] Immediately invoke the generator function. This returns a generator in a suspended state.
-  next() // [2] invoke the next function. We call it right away to tell the generator to resume execution (since next triggers gen.next()).
-
-  // [3] Notice how next looks just like the Node callback signature (er, value). Every time a thunk completes its asynchronous operation we will call this function.
-  function next (er, value) {
-    if (er) return gen.throw(er)
-    var continuable = gen.next(value)
-
-    if (continuable.done) return // [4]  If there was an error from the asynchronous operation, throw the error back into the generator to be handled there.
-    var cbFn = continuable.value // [5] If successful, send the value back to the generator. This value gets returned from the yield call.
-    // [6] If we have no more left to do in our generator, then stop by returning early.
-    // [7] If we have more to do, take the value of the next yield and execute it using our next as the callback.
-    cbFn(next)
-  }
-}
-```
-
-Usage for the above implementation.
-
-```js
-var fs = require('fs')
-var readFile = thunkify(fs.readFile)
-
-run(function* () {
-  try {
-    var file = yield readFile('./async.js')
-    console.log(file)
-  }
-  catch (er) {
-    console.error(er)
-  }
-})
-```
-
-3. a simple implementation of a flow control library built on top of this facility
-
-```js
-var fs = require(‘fs’);
-function thread(fn) {
-  var gen = fn();
-  function next(err, res) {
-    var ret = gen.next(res);
-    if (ret.done) return;
-    ret.value(next);
-  }
-
-  next();
-}
-thread(function *(){
-  var a = yield read(‘Readme.md’);
-  var b = yield read(‘package.json’);
-  console.log(a);
-  console.log(b);
-});
-function read(path) {
-  return function(done){
-    fs.readFile(path, 'utf8', done);
-  }
-}
-```
-
-#### co libraray
-
-Co is a generator based flow-control module for node. Koa is built on co, which handles the delegation to generators and gives Koa its nice syntax.
-
-Co (and Koa) have a really simple way to handle this; just yield an array or object, where each element of the array or property of the object is either a generator or a Promise. When Co encounters this, it triggers all the promises/generators at the same time, waits for the results to return, and keeps things in their correct order.
-
-Co handles all of the generator calling code for you. Simply put a`yield` before anything that evaluates to something.
-
-Why coroutines rocks? coroutines run each “light-weight thread” with its own stack. The implementations of these threads varies but typically they have a relatively small initial stack size (~4kb), growing when required. Why is this so great? Error handling! Since we pass the generator to the `co()` function, and all yields delegate to the caller, extremely robust error handling can be delegated to Co.
-
-```js
-co(function *(){
-  var str = yield read('Readme.md')
-  str = str.replace('Something', 'Else')
-  yield write('Readme.md', str)
-})
-```
-
-Libraries like Co can “throw” exceptions back to their origin as shown below, meaning you can use try/catch as the language intended, or leave them out and utilize the final Co callback to handle the error.
-
-```js
-co(function *(){
-  try {
-    var str = yield read(‘Readme.md’)
-  } catch (err) {
-    // whatever
-  }
-  str = str.replace(‘Something’, ‘Else’)
-  yield write(‘Readme.md’, str)
-})
-```
-
-Generators vs coroutines
-
-Generators are sometimes referred to as “semicoroutines”, a more limited form of coroutine that may only yield to its caller. This makes the use of generators more explicit than coroutines, as only yielded values may suspend the “thread”.
-
-Coroutines are more flexible in this respect, and looks just like regular blocking code as no yield is required:
-
-```js
-var str = read('Readme.md')
-str = str.replace('Something', 'Else')
-write('Readme.md', str)
-console.log('all done!')
-```
-
-
-Co works with both promises and thunks and they are used for yield statement so that co knows when to continue execution of the generator instead of you manually having to call next(). Co also supports the use of generators, generator functions, objects and arrays for further flow control support.
-
-By yielding an array or an object you can have co perform parallel operations on all of the yielded items. By yielding to a generator or generator function co will delegate further calls to the new generator until it is completed and then resume calling next on the current generator, allowing you to effectively create very interesting flow control mechanisms with minimal boilerplate code.
-
-```js
-var read = thunkify(fs.readFile);
-
-co(function *bar () {
-  try {
-    var x = yield read('input.txt');
-  } catch (err) {
-    console.log(err);
-  }
-  console.log(x);
-})();
-```
-
-calling `co()` does not execute the code inside of it, `co` return a function that you need to call to start the generator.
-
-`co` can yield object, array or more. It will run any yieldable elements within the object, array in parellel. cannot yeild any API which only setup for callbacks. Nested yieldables are supported, meaning you can nest promises within objects within arrays, and so on!
-
-`co` yieldable objects currently supported are:
-
-* promises
-
-promises is that they are an object returned by a function that maintains the state of the function and a list of callbacks to call when the a specific state of the object is or has been entered into.
-
-* thunks (functions)
-* array (parallel execution)
-
-when `yield` an array or an object, it will evaluate its content parallelly.
-
-```js
-var read = thunkify(fs.readFile);
-
-co(function *() {
-  // 3 concurrent reads
-  var reads = yield [read('input.txt'), read('input.txt'), read('input.txt')];
-  console.log(reads);
-
-  // 2 concurrent reads
-  reads = yield { a: read('input.txt'), b: read('input.txt') };
-  console.log(reads);
-})();
-```
-
-Of course this makes sense when the members of your collection are thunks, generators. You can nest, it will traverse the array or object to run all of your functions parallelly. Important: the yielded result will not be flattened, it will retain the same structure.
-
-```js
-var read = thunkify(fs.readFile);
-
-co(function *() {
-  var a = [read('input.txt'), read('input.txt')];
-  var b = [read('input.txt'), read('input.txt')];
-
-  // 4 concurrent reads
-  var files = yield [a, b];
-
-  console.log(files);
-})();
-```
-
-You can also achieve parallelism by yielding after the call of a thunk.
-
-```js
-var read = thunkify(fs.readFile);
-
-co(function *() {
-  var a = read('input.txt');
-  var b = read('input.txt');
-
-  // 2 concurrent reads
-  console.log([yield a, yield b]);
-
-  // or
-  //
-  // 2 concurrent reads
-  console.log(yield [a, b]);
-})();
-```
-
-* objects (parallel execution)
-
-* generators (delegation)
-
-You can also yield generators as well of course. Notice you don't need to use `yield *`.
-
-```js
-var stat = thunkify(fs.stat);
-
-function *size (file) {
-  var s = yield stat(file);
-  return s.size;
-}
-
-co(function *() {
-  var f = yield size('input.txt');
-  console.log(f);
-})();
-```
-
-* generator functions (delegation)
-
-```js
-    co(function* (){
-        // possible  try{} catch{}
-    })();
-```
-
-`co()` invoked, then called with a callback and optional arguments. and return a promise object.
-
-```js
-    function onerror(err) {
-      // log any uncaught errors
-      // co will not throw any errors you do not handle!!!
-      // HANDLE ALL YOUR ERRORS!!!
-      console.error(err.stack);
-    }
-
-    co(function* () {
-      // yield any promise
-      var result = yield Promise.resolve(true);
-      return result;
-    })
-        .then(function (value) {
-          console.log(value);
-        })
-        .catch(onerror);
-```
-
-- Thunks
-
-Thunks are just functions that take a single parameter callback and return another function that they are wrapping.
-
-This creates a closure that allows the calling code to instantiate the function passing in its callback so that it can be told when the method is complete.
-
-Thunks are functions that only have a single argument, a callback. Thunk support only remains for backwards compatibility and may be removed in future versions of co.
-
-- Arrays
-
-yielding an array will resolve all the yieldables in parallel.
-
-```js
-    co(function *(){
-      // resolve multiple promises in parallel
-      var a = Promise.resolve(1);
-      var b = Promise.resolve(2);
-      var c = Promise.resolve(3);
-      var res = yield [a, b, c];
-      console.log(res);   // => [1, 2, 3]
-    }).catch(onerror);
-```
-
-```js
-    // errors can be try/catched
-    co(function *(){
-      try {
-        yield Promise.reject(new Error('boom'));
-      } catch (err) {
-        console.error(err.message); // "boom"
-     }
-    }).catch(onerror);
-```
-
-- Objects
-
-Just like arrays, objects resolve all yieldables in parallel.
-
-```js
-    co(function* () {
-      var res = yield {
-        1: Promise.resolve(1),
-        2: Promise.resolve(2),
-      };
-      console.log(res); // => { 1: 1, 2: 2 }
-    }).catch(onerror);
-```
-
-- Generators and Generator Functions
-
-Generators are essentially iterator functions that allow their execution to be paused and resumed through the use of yield.
-
-The yield keyword essentially says return this value for this iteration and I'll pick up where I left off when you call next() on me again.
-
-Generator functions are special functions in that they don't execute the first time they're call but instead return an iterator object with a few methods on it and the ability to be used in for-of loops and array comprehensions.
-
-send(),: This sends a value into the generator treating it as the last value of yield and continues the next iteration
-
-next(),: This continues the next iteration of the generator
-
-throw(): This throws an exception INTO the generator causing the generator to throw the exception as though it came from the last yield statement.
-
-close(): This forces the generator to return execution and calls any finally code of the generator which allows final error handling to be triggered if needed.
-
-Their ability to be paused and resumed is what makes them so powerful at managing flow control.
-
-Generators are lightweight co-routines for JavaScript. They allow a function to be suspended and resumed via the yield keyword. Generator functions have a special syntax: function* (). With this superpower, we can also suspend and resume asynchronous operations using constructs such as promises or “thunks” leading to “synchronous-looking” asynchronous code.
-
-Any generator or generator function you can pass into co can be yielded as well. This should generally be avoided as we should be moving towards spec-compliant Promises instead.
-
-- Contexts
-
-co calls all continuables or yieldables with the same context. This particulary becomes annoying when you `yield` a function that needs a different context. For example, constructors!
+`co` calls all continuables or yieldables with the same context. This particulary becomes annoying when you `yield` a function that needs a different context. For example, constructors!
 
 ```js
 function Thing() {
@@ -2522,7 +2179,7 @@ app.use(function* () {
 })
 ```
 
-What you'll find is that this.body is undefined! This is because co is essentially doing this:
+What you'll find is that `this.body` is `undefined`! This is because `co` is essentially doing this:
 
 ```js
 app.use(function* () {
@@ -2534,7 +2191,7 @@ app.use(function* () {
 })
 ```
 
-This is where yield* comes in! When context is important, you should be doing one of two things:
+This is where delegate `yield*` comes in! When context is important, you should be doing one of two things:
 By using this strategy, you'll avoid 99% of generator-based context issues. So avoid doing `yield context.method`!
 
 ```js
@@ -2542,23 +2199,7 @@ yield* context.generatorFunction()
 yield context.function.bind(context)
 ```
 
-- Generator methods
-
-1. .next   fn, If this is not a generator object, Throw Error Call this.[[Send]] with single argument undefined Return the result
-
-2. .send   fn, If this is not a generator object, Throw Error Call this.[[Send]] with the first argument Return the result
-
-3. .throw  fn, If this is not a generator object, Throw Error Call this.[[Throw]] with the first argument Return the result
-
-4. .close   fn, If this is not a generator object, Throw Error Call this.[[Close]] with no arguments Return the result
-
-5. .iterate fn, Every generator is an iterator object, and it has an iterate method whose behavior is: Return this
-
-In other words, generator iterators can be automatically used with for-of loops and comprehensions.
-
 #### Co API
-
-[Co wiki](https://github.com/tj/co/wiki) list of all co-ready modules.
 
 1. `co(fn*).then( val => )`
 
@@ -2582,222 +2223,146 @@ This is a separate function so that every `co()` call doesn't create a new, unne
     });
 ```
 
+#### Yieldable
+
+Co works with both promises and thunks and they are used for yield statement so that co knows when to continue execution of the generator instead of you manually having to call `next()`. Co also supports the use of generators, generator functions, objects and arrays for further flow control support.
+
+By yielding an array or an object you can have co perform parallel operations on all of the yielded items.
+
+By yielding to a generator or generator function co will delegate further calls to the new generator until it is completed and then resume calling next on the current generator, allowing you to effectively create very interesting flow control mechanisms with minimal boilerplate code.
+
+Nested yieldables are supported, meaning you can nest promises within objects within arrays, and so on!
+
+Co cannot yeild any API which only setup for callbacks.
+
+`co` yieldable objects currently supported are:
+
+- promises
+
+promises is that they are an object returned by a function that maintains the state of the function and a list of callbacks to call when the a specific state of the object is or has been entered into.
+
+- thunks (functions)
+
+Thunks are functions that only have a single argument, a callback. Thunk support only remains for backwards compatibility and may be removed in future versions of co.
+
+- array (parallel execution)
+
+when `yield` an array or an object, it will evaluate its content parallelly. yielding an array will resolve all the yieldables in parallel.
+
+```js
+var read = thunkify(fs.readFile);
+co(function *() {
+  // 3 concurrent reads in Array form
+  var a = [read('input.txt'), read('input.txt')];
+  var b = [read('input.txt'), read('input.txt')];
+  // 4 concurrent reads
+  // formats: [yield a, yield b] or yield [a, b], both fine
+  var files = yield [a, b];
+  console.log(files);
+
+  // 2 concurrent reads in Object form
+  reads = yield { a: read('input.txt'), b: read('input.txt') };
+  console.log(reads);
+})();
+```
+
+The members of your collection are thunks, generators. You can nest, it will traverse the array or object to run all of your functions parallelly. Note: the yielded result will not be flattened, it will retain the same structure.
+
+`yield` could handle array of async operation. Generator's `throw` method would handle any error happened in Async. We could add our custom `try/catch` error block, koa also added `app.onerror`, `404` or `500` default etc. But recommend to handle the error yourself.
+
+```js
+// handle error in one place, all `yield` error would be caught
+// mix with `this.throw` and `new Error()` to organize errors
+app.use(function* (next) {
+  try {
+    yield next
+  } catch(e) {
+    // handleErrors(e);  // complex logic to handle errors
+    return this.body = e.message || "I'm dead"
+  }
+});
+
+app.use(function* () {
+  var arr = yield ['1.txt', '2.txt', '3.txt'].map(function(filePath) {
+    return thunkifiedRead(filePath)
+  })
+  this.body = arr.join(',')
+})
+```
+
+- objects (parallel execution)
+
+Just like arrays, objects resolve all yieldables in parallel.
+
+- generators (delegation)
+
+Notice you don't need to use `yield *` to yield generators
+
+```js
+var stat = thunkify(fs.stat);
+
+function *size (file) {
+  var s = yield stat(file);
+  return s.size;
+}
+
+co(function *() {
+  var f = yield size('input.txt');
+  console.log(f);
+})();
+```
+
+- generator functions (delegation)
+
+```js
+  co(function* (){
+      // possible  try{} catch(e){}
+  })();
+```
+
+#### Generators vs Coroutines
+
+Generators are sometimes referred to as “semicoroutines”, a more limited form of coroutine that may only yield to its caller. This makes the use of generators more explicit than coroutines, as only yielded values may suspend the “thread”.
+
+Coroutines are more flexible in this respect, and looks like regular blocking code as no yield is required:
+
+```js
+var str = read('Readme.md')
+str = str.replace('Something', 'Else')
+write('Readme.md', str)
+console.log('all done!')
+```
+
+
 ## Decorator Pattern
 
-decorator - a structural design pattern that promotes code reuse and is a flexible alternative to subclassing. This pattern is also useful for modifying existing systems where you may wish to add additional features to objects without the need to change the underlying code that uses them.
+A structural design pattern that promotes code reuse and is a flexible alternative to subclassing. This pattern is also useful for modifying existing systems where you may wish to add additional features to an existing object dynamically without the need to change the underlying code that uses them. The idea is that the decoration itself isn't essential to the base functionality of an object otherwise it would be baked into the 'superclass' object itself.
 
-Traditionally, the decorator is defined as a design pattern that allows behavior to be added to an existing object dynamically. The idea is that the decoration itself isn't essential to the base functionality of an object otherwise it would be baked into the 'superclass' object itself.
+Also known as a wrapper, is a mechanism by which to extend the run-time behavior of an object, a process known as decorating. The decorator pattern is used to enhance the behavior of an existing object, not change it.
 
-The decorator pattern, also known as a wrapper, is a mechanism by which to extend the run-time behavior of an object, a process known as decorating. The decorator pattern is used to enhance the behavior of an existing object, not change it (like this example does).
+#### Extend OOP design
+
+In traditional OOP, a `class B` is able to extend another `class A`. `A` is a superclass and `B` is a subclass of `A`. All instances of `B` inherit the methods from`A`. `B` could define its own methods, including those that override methods originally defined by `A`.
+
+- method chaining
+
+`B` invoke a method in `A` that has been overridden
+
+- constructor chaining
+
+`B` need to invoke the constructor `A()` (the superclass)
+
+Decorators are used when it's necessary to delegate responsibilities to an object where it doesn't make sense to subclass it. A common reason for this is that the number of features required demand for a very large quantity of subclasses.
+
+The decorator pattern isn't heavily tied to how objects are created but instead focuses on the problem of extending their functionality. Rather than just using inheritance, where we're used to extending objects linearly, we work with a single base object and progressively add decorator objects which provide the additional capabilities. The idea is that rather than subclassing, we add (decorate) properties or methods to a base object so its a little more streamlined.
 
 
-In traditional OOP, a class B is able to extend another class A. Here we consider A a
-superclass and B a subclass of A. As such, all instances of B inherit the methods from
-A. B is however still able to define its own methods, including those that override
-methods originally defined by A.
+#### Wrapper
 
-Should B need to invoke a method in A that has been overridden, we refer to this as
-method chaining. Should B need to invoke the constructor A() (the superclass), we call
-this constructor chaining.
-
-Decorators are used when it's necessary to delegate responsibilities to an object where
-it doesn't make sense to subclass it. A common reason for this is that the number of
-features required demand for a very large quantity of subclasses.
-
-The decorator pattern isn't heavily tied to how objects are created but instead focuses
-on the problem of extending their functionality. Rather than just using inheritance,
-where we're used to extending objects linearly, we work with a single base object and
-progressively add decorator objects which provide the additional capabilities. The idea
-is that rather than subclassing, we add (decorate) properties or methods to a base object
-so its a little more streamlined.
-
-Example 1: Basic decoration of existing object constructors with new
-functionality
+Criticism: 1. decorator must be maintained to adhere to its interface. 2. decorators must implement all operations defined by a contract to enforce a consistent API. While this can be tedious at times, there are libraries and methodologies that can be used with JavaScript’s dynamic nature to expedite coding. Reflection-like invocation can be used to allay concerns when dealing with a changing API.
 
 ```js
-function vehicle( vehicleType ){
-// properties and defaults
-this.vehicleType = vehicleType || 'car',
-this.model = 'default',
-this.license = '00000-000'
-}
-// Test instance for a basic vehicle
-var testInstance = new vehicle('car');
-console.log(testInstance);
-// vehicle: car, model:default, license: 00000-000
-// Lets create a new instance of vehicle, to be decorated*/
-var truck = new vehicle('truck');
-// New functionality we're decorating vehicle with
-truck.setModel = function( modelName ){
-  this.model = modelName;
-}
-truck.setColor = function( color ){
-this.color = color;
-}
-// Test the value setters and value assignment works correctly
-truck.setModel('CAT');
-truck.setColor('blue');
-console.log(truck);
-// vehicle:truck, model:CAT, color: blue
-// Demonstrate 'vehicle' is still unaltered
-var secondInstance = new vehicle('car');
-console.log(secondInstance);
-// as before, vehicle: car, model:default, license: 00000-000
-```
-
-Example 2: Simply decorate objects with multiple decorators
-
-Here, the decorators are overriding the superclass .cost() method to return the current
-price of the Macbook plus with the cost of the upgrade being specified. It's considered a
-decoration as the original Macbook object's constructor methods which are not overridden
-(e.g. screenSize()) as well as any other properties which we may define as a part
-of the Macbook remain unchanged and intact.
-
-```js
-// What we're going to decorate
-function MacBook() {
-this.cost = function () { return 997; };
-this.screenSize = function () { return 13.3; };
-}
-// Decorator 1
-function Memory( macbook ) {
-var v = macbook.cost();
-macbook.cost = function() {
-return v + 75;
-}
-}
-// Decorator 2
-function Engraving( macbook ){
-var v = macbook.cost();
-macbook.cost = function(){
-return v + 200;
-};
-}
-// Decorator 3
-function Insurance( macbook ){
-var v = macbook.cost();
-macbook.cost = function(){
-  return v + 250;
-};
-}
-var mb = new MacBook();
-Memory(mb);
-Engraving(mb);
-Insurance(mb);
-console.log(mb.cost()); //1522
-console.log(mb.screenSize()); //13.3
-```
-
-Example 3
-
-The class MedicalPublication and Publication implicitly implement PublicationIF. In this case MedicalPublication acts as the decorator to list the first and last authors as contributors while unchanging other behavior.
-
-Note that MedicalPublication references PublicationIF, and not Publication. By referencing the interface instead of a specific implementation we can arbitrarily nest decorators within one another! (In the coffee shop problem we can create decorators such as WithCream, WithoutCream, and ExtraSugar–these can be nested to handle any complex order.)
-
-The MedicalPublication class delegates for all standard operations and overrides contributingAuthors() to provide the “decorated” behavior.
-
-```js
-/**
- * MedicalPublication constructor.
- *
- * @param PublicationIF The publication to decorate.
- */
-var MedicalPublication = function(publication) {
-  this._publication = publication;
-};
-
-MedicalPublication.prototype = {
-
-  /**
-   * @return String The publication title.
-   */
-  getTitle:  function() {
-    return this._publication.getTitle();
-  },
-
-  /**
-   * @return Author[] All authors.
-   */
-  getAuthors: function() {
-    return this._publication.getAuthors();
-  },
-
-  /**
-   * @return int The publication type.
-   */
-  getType: function() {
-    return this._publication.getType();
-  },
-
-  /**
-   * Returns the first and last authors if multiple authors exists.
-   * Otherwise, the first author is returned. This is a convention in the
-   * medical publication domain.
-   *
-   * @return Author[] The significant contributors.
-   */
-  contributingAuthors: function() {
-
-    var authors = this.getAuthors();
-
-    if (authors.length > 1) {
-      // fetch the first and last contributors
-      return authors.slice(0, 1).concat(authors.slice(-1));
-    } else {
-      // zero or one contributors
-      return authors.slice(0, 1);
-    }
-  },
-
-  /**
-   * @return String the representation of the Publication.
-   */
-  toString: function() {
-    return 'Decorated - ['+this.getType()+'] "'+this.getTitle()+'" by '+this.contributingAuthors().join(', ');
-  }
-};
-
-/**
- * Factory method to instantiate the appropriate PublicationIF implementation.
- *
- * @param String The discriminating type on which to select an implementation.
- * @param String The publication title.
- * @param Author[] The publication's authors.
- * @return PublicationIF The created object.
- */
-var publicationFactory = function(title, authors, type) {
-
-  if (type === 'medical') {
-    return new MedicalPublication(new Publication(title, authors, type));
-  } else {
-    return new Publication(type, title, authors);
-  }
-};
-```
-
-Once the application is modified to expect PublicationIF objects we can accommodate further requirements to handle what constitutes a contributing author by adding new decorators. Also, the design is now open for any PublicationIF implementations beyond decorators to fulfill other requirements, which greatly increases the flexibility of the code.
-
-```js
-// usage
-var title = 'Pancreatic Extracts as a Treatment for Diabetes';
-var authors = [new Author('Adam', 'Thompson'),
-  new Author('Robert', 'Grace'),
-  new Author('Sarah', 'Townsend')];
-var type = 'medical';
-
-var pub = publicationFactory(title, authors, type);
-
-// prints: Decorated - [medical] 'Pancreatic Extracts as a Treatment of Diabetes' by Adam Thompson, Sarah Townsend
-alert(pub);
-```
-
-One criticism is that the decorator must be maintained to adhere to its interface.
-Another criticism is that decorators must implement all operations defined by a contract to enforce a consistent API. While this can be tedious at times, there are libraries and methodologies that can be used with JavaScript’s dynamic nature to expedite coding. Reflection-like invocation can be used to allay concerns when dealing with a changing API.
-
-```js
-/**
- * Invoke the target method and rely on its pre- and post-conditions.
- */
+// Invoke the target method and rely on its pre- and post-conditions.
 Decorator.prototype.someOperation = function() {
   return this._decorated.someOperation.apply(this._decorated, arguments);
 };
@@ -2818,269 +2383,88 @@ function wrapper(klass, func, context) {
 };
 ```
 
-
-
-
-
-
-### Example
-
-1. Co-mock work with MongoDB
-
-store the data from a post into a Mongo-database using Monk via the coroutine library Co-Monk (which is the simplest way to access MongoDb with generators right now):
+Think about `co` control flow library
 
 ```js
-// Create the application
-var koa = require('koa');
-var route = require('koa-route');
-var parse = require('co-body');
-var app = module.exports = koa();
-
-// Get monk up an running
-// set up Monk, and use it with "mongodb generator goodness for co" via co-monk.
-var monk = require('monk');
-var wrap = require('co-monk');
-var db = monk('localhost/koausers');
-var users = wrap(db.get('users'));
-
-// Set up some routes
-app.use(route.post('/user', create));
-app.use(route.get('/user', list));
-
-// And here is the handling code
-function *create() {
-    // Parse the user from the posted data
-    // using the co-body package
-    // if that should take time, so we yield the response. Koa can let other execute in the meantime. Just like for a callback. But without the callback.
-    var user = yield parse(this);
-    user.created_on = new Date;
-
-    // Store it in database
-    try
-    {
-        //  store the object in mongo. And better yield there too since that might take time, or at least is IO.
-        this.body = yield users.insert(user);
-        this.status = 201;
-    }
-    catch(e)
-    {
-        this.body = "An error occured: " + e;
-        this.status = 401;
-    }
+// Class is `co` itself, context is `this` which is caller from `co.wrap`
+// it follows the decorator's dynamic invocation
+co.wrap = function (fn) {
+  return function () {
+    return co.call(this, fn.apply(this, arguments));
+  };
 };
-
-function *list() {
-  //yield the result from our, very simple, Mongo query.
-  var res = yield users.find({});
-  this.body = res;
-};
-
-// fire it up
-app.listen(3000);
-console.log("Post to http://localhost:3000/user to store new stuff");
-console.log("Get from http://localhost:3000/user to see your users");
-
 ```
 
-Here is how to add the user
+#### Examples
 
-```bash
-curl -X POST -H "Content-Type: application/json" -d '{"username":"marcusoft.net@gmail.com","password":"xyz"}' http://localhost:3000/user -v
-curl -X POST -H "Content-Type: application/json" -d '{"username":"hugo@gmail.com","password":"xyz^2"}' http://localhost:3000/user -v
-curl -X POST -H "Content-Type: application/json" -d '{"username":"abbe@gmail.com","password":"zyx"}' http://localhost:3000/user -v
-
-# see the results
-curl http://localhost:3000/user -v
-```
-
-
-Another co-mock mongodb store and retrieve example. The [monk interface](https://github.com/tj/monk) is exposed through the [co-monk](https://github.com/tj/co-monk) library. This is awesome, since that means that we can have interaction with our user collection like this:
-
-Insert : yield users.insert(user);
-Find all: var res = yield users.find({});
-Find one: var res = yield users.findOne({_id:id});
-Update via id: yield users.updateById(id, user);
-Update via other property: yield users.update({name: 'Marcus'}, user);
-Delete: yield users.remove({_id:id});
+Example 1: Basic decoration of existing object constructors with new functionality
 
 ```js
-// Create the application
-var koa = require('koa');
-var route = require('koa-route');
-var parse = require('co-body');
-var app = module.exports = koa();
+function vehicle( vehicleType ){
+  // properties and defaults
+  this.vehicleType = vehicleType || 'car',
+  this.model = 'default',
+  this.license = '00000-000'
+}
 
-// Set up monk stuff, via co-monk
-//  require the co-monk library and store that in a variable called wrap. That can then be used to create a collection-like variable for easy access
-var monk = require('monk');
-var wrap = require('co-monk');
-var db = monk('localhost/koa_users');
-var users = wrap(db.get('users'));
+var testInstance = new vehicle('car');
+console.log(testInstance);  // vehicle: car, model:default, license: 00000-000
 
-// For testing, let's expose the users collection
-module.exports.users = users;
+// Lets create a new instance of vehicle, to be decorated*/
+var truck = new vehicle('truck');
+// New functionality we're decorating vehicle with
+truck.setModel = function( modelName ){
+  this.model = modelName;
+}
 
-// Set up some routes
-app.use(route.post('/user', create));
-app.use(route.get('/user', list));
-app.use(route.get('/user/:id', getUser));
-app.use(route.put('/user/:id', updateUser));
-app.use(route.del('/user/:id', deleteUser));
+truck.setColor = function( color ){
+  this.color = color;
+}
 
-// And here is route handling
-// I haven't included error handling but trust the
-// built in Koa default error handling
-// (returns 500 and logs to console)
-function *create() {
-    var user = yield parse(this);
-    user.created_on = new Date;
+truck.setModel('CAT');
+truck.setColor('blue');
+console.log(truck); // vehicle:truck, model:CAT, color: blue
 
-    var u = yield users.insert(user);
-    this.body  = u;
-    this.set("Location", "/user/" + user._id);
-    this.status = 201;
-};
-
-function *list() {
-    var res = yield users.find({});
-    this.body = res;
-    this.status = 200;
-};
-
-function *getUser(id){
-    var res = yield users.findOne({_id:id});
-    this.body = res;
-    this.status = 200;
-};
-
-function *updateUser(id){
-    var user = yield parse(this);
-    yield users.updateById(id, user);
-    this.status = 204;
-};
-
-function *deleteUser(id){
-    var res = yield users.remove({_id:id});
-    var u = yield users.findOne({_id:id});
-    console.log(u);
-    this.status = 200;
-};
-
-// fire the app up
-app.listen(3000);
-console.log("Listening on http://localhost/users");
-
+// Demonstrate 'vehicle' is still unaltered
+var secondInstance = new vehicle('car');
+console.log(secondInstance); // vehicle: car, model:default, license: 00000-000
 ```
 
-Here is the test code for above
+Example 2: Simply decorate objects with multiple decorators
 
-We're using the co-library here to wrap the functionality of our call in a generator (or "Generator based flow-control goodness for nodejs (and soon the browser), using thunks or promises, letting you write non-blocking code in a nice-ish way." from the npm-site).
-
-This is great because that means that we can yield stuff to get the "async" behaviour we want and use co-monk again.
-
-Note that the co-function takes the done-variable as parameter; co(...)(done); This is a bit of trickery that first tripped me up. I'm not sure I understand it fully but this works at least. And it makes sense in a way to; first to this (inside of the co-function) and then call done. A bit like promises, maybe.
+Here, the decorators are overriding the superclass .cost() method to return the current price of the Macbook plus with the cost of the upgrade being specified. It's considered a decoration as the original Macbook object's constructor methods which are not overridden
+(e.g. screenSize()) as well as any other properties which we may define as a part of the Macbook remain unchanged and intact.
 
 ```js
-var app = require('./app');
-var co = require('co');
-var should = require('should');
-
-var request = require('supertest').agent(app.listen());
-var users = app.users;
-
-describe('CRUD Api for storing stuff in MongoDb with monk and co-monk', function(){
-    var removeAll = function(done){
-        co(function *(){
-            yield users.remove({});
-        })(done);
-    };
-
-    beforeEach(function (done) {
-        removeAll(done);
-    });
-
-    after(function (done) {
-        removeAll(done);
-    });
-
-    var user  = { name: 'marcus', password : 'tobi'};
-    it('creates a new user', function(done){
-        request
-            .post('/user')
-            .send(user)
-            .expect(201)
-            .end(done);
-    });
-
-    it('gets an existing user', function(done){
-        co(function *(){
-            // Inserts the user into the mongo db
-            var newUser = yield users.insert(user);
-
-            // Calls our API via supertest
-            request
-                .get('/user/' + newUser._id)
-                .set('Accept', 'application/json')
-                .expect(200)
-                .end(function(err, res){
-                    // Validates the response
-                    res.body.name.should.equal('marcus');
-                    res.body.password.should.equal('tobi');
-                });
-        })(done);
-    });
-
-    it('updates an existing user', function(done){
-        co(function *(){
-            var newUser = yield users.insert(user);
-            newUser.name = 'Hugo';
-            request
-                .put('/user/' + newUser._id)
-                .send(user)
-                .expect(204);
-        })(done);
-    });
-
-    it('deletes an existing user', function(done){
-        co(function *(){
-            var newUser = yield users.insert(user);
-
-            request
-                .del('/user/' + newUser._id)
-                .expect(200);
-        })(done);
-    });
-});
-```
-
-Look at this post and take some idea  http://www.marcusoft.net/2014/04/mnb-heroku.html
-
-
-If run into any Error like `yield users.remove({});  SyntaxError: Unexpected identifier`
-
-The "Unexpected identifier" is not really users (in my example), but rather that yield is not valid outside a generator function. To fix: We can create an anonymous generator function by wrapping the code in "function *(){ // code }", then use `co` to call, drive through the function.  ` "co(function *(){// code})();"`
-
-Co is a neat little library that lets you "write non-blocking code in a nice-ish way". That's all very complicated if you ask me. But let's show how this co could be used to help us fix the error we ran into before:
-
-```js
-var co = require('co');
-var monk = require('monk');
-var should = require('should');
-var wrap = require('co-monk');
-var db = monk('localhost/testers');
-var users = wrap(db.get('users'));
-
-co(function *(){   // <= wrapped in a generator function (note the asterisk). . This (anonymous) generator function is then passed to the co-library constructor function.
-    yield users.remove({});
-
-    yield users.insert({ name: 'Tobi', species: 'ferret' });
-    yield users.insert({ name: 'Loki', species: 'ferret' });
-    yield users.insert({ name: 'Jane', species: 'ferret' });
-
-    var res = yield users.findOne({ name: 'Tobi' });
-    res.name.should.equal('Tobi');
-
-    var res = yield users.find({ species: 'ferret' });
-    res.should.have.length(3);
-})(); //  Finally we also invoke the function that co-returns, right away, hence the ")();
+function MacBook() {
+  this.cost = function () { return 997; };
+  this.screenSize = function () { return 13.3; };
+}
+// Decorator 1
+function Memory( macbook ) {
+  var v = macbook.cost();
+  macbook.cost = function() {
+      return v + 75;
+  }
+}
+// Decorator 2
+function Engraving( macbook ){
+  var v = macbook.cost();
+  macbook.cost = function(){
+    return v + 200;
+  };
+}
+// Decorator 3
+function Insurance( macbook ){
+  var v = macbook.cost();
+  macbook.cost = function(){
+    return v + 250;
+  };
+}
+var mb = new MacBook();
+Memory(mb);
+Engraving(mb);
+Insurance(mb);
+console.log(mb.cost()); //1522
+console.log(mb.screenSize()); //13.3
 ```
