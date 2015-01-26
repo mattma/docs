@@ -5,6 +5,7 @@
 [API](#api)
 [KOA wiki](https://github.com/koajs/koa/wiki) includes list of resources.
 
+> Koa aims to be smaller, more expressive, and more robust foundation for web applications and APIs. Through leveraging generators Koa allows you to ditch callbacks and greatly increase error-handling. Koa does not bundle any middleware within core, and provides an elegant suite of methods that make writing servers fast and enjoyable.
 
 ## Intro
 
@@ -70,15 +71,16 @@ function errorHandler() {
   return function* (next) {
     // try catch all downstream errors here
     try {
-      yield next;
-    } catch (err) {
+      yield next; //pass on the execution to downstream middlewares
+    } catch (err) { //executed only when an error occurs & no other middleware responds to the request
       // set respose status
       this.status = err.status || 500;
-      // set response body
-      this.body = 'internal server error';
+      this.type = 'json'; //optional here
+      // set response body. since it is an object, will set type automatically
+      this.body = { 'error' : 'The application just went bonkers, hopefully NSA has all the logs ;) '};
       console.error(err.stack);
-      // can emit on app for log
-      // this.app.emit('error', err, this);
+      //delegate the error back to application
+      this.app.emit('error', err, this);
     }
   };
 }
@@ -218,7 +220,7 @@ app.use(function* () {
 
 Lazy evaluation is already possible with JavaScript using closure tricks and the like, but its greatly simplified now with `yield`. By suspending execution and resuming at will, we are able to pull values only when we need to.
 
-`yield` is a keyword specific to generators and allows users to arbitrarily suspend functions at any yield point. yield is not a magical async function - `co` does all that magic behind the scenes.
+`yield` is a keyword specific to generators and allows users to **arbitrarily suspend** functions at any `yield` point. `yield` is not a magical async function - `co` does all that magic behind the scenes.
 
 You can think of co's use of generators like this with node callbacks:
 
@@ -237,6 +239,44 @@ function* () {
 }
 ```
 
+#### Content negotiation
+
+An important part of `HTTP` servers is content negotiation. Perhaps the most important is `Accept-Encoding` and `Content-Encoding`, which negotiates whether to compress content. This is the only `Accept` header supported by most CDNs.
+
+In Koa, `this.request.acceptsEncodings()` does all the content negotiation for you. Remember, if you compress your body, you should set the `Content-Encoding` header.
+
+You **do not** want to do anything like `if (~this.request.headers['accept-encoding'].indexOf('json'))`. These headers are very complex, and this type of logic is not specification-compliant. Use the `this.request.accepts()`-type methods.
+
+```js
+/**
+ * This is a promisified version of zlib's gzip function,
+ * allowing you to simply `yield` it without "thunkifying" it.
+ */
+var gzip = require('mz/zlib').gzip;
+// send `hello world` gzipped or not gzipped (identity) based on server accepts
+app.use(function* () {
+  if(this.request.acceptsEncodings('gzip')) {
+    this.response.set('Content-Encoding', 'gzip');
+    this.body = yield gzip('hello world');
+  } else {
+    this.body = 'hello world';
+  }
+})
+```
+
+
+#### Content Header
+
+Both a request and a response could have various content headers. Some of these are: `Content-Type`, `Content-Length`, `Content-Encoding`, etc. Koa has getters/setters for `type` and `length` like those: `this.request.type`, `this.request.length`, `this.response.type`, `this.response.length`
+
+Inferring `this.request.type` is a little difficult. For example, how do you know if the request is text? You don't want to use a regular expression or try all the possible mime types. Thus, Koa has `this.request.is()` for you:
+
+```js
+this.request.is('image/*') // => image/png
+this.request.is('text') // => text or false
+```
+
+
 ## Koa vs Express
 
 Philosophically, Koa aims to "fix and replace node", whereas Express aims to "augments node".
@@ -250,6 +290,8 @@ Express is an application framework for node.js.
 
 Koa shares many middlewares along with Express. Koa won't replace Connect, it is just a different take on similar functionality.
 
+unlike Express and node.js, Koa uses getters and setters instead of methods.
+Unlike Express where you use node.js' `req` and `res` object, Koa exposes its own very similar `this.request` and `this.response` objects
 
 - Error handling
 
@@ -309,6 +351,32 @@ express: rich. express(connect) include several middlewares like routing solutio
 - Koa relies less on middleware
 
 For example, instead of a "body parsing" middleware, you would instead use a body parsing function.
+
+Unlike Express and many other frameworks, Koa does not include a router. Without a router, routing in Koa can be done by using this.request.path and yield next. To check if the request matches a specific path:
+
+```js
+app.use(function* (next) {
+  if (this.request.path === '/') {
+
+  }
+})
+
+// To skip this middleware:
+app.use(function* (next) {
+  if (conditionTrue) return yield next;
+})
+
+// Combining this together, you can route paths like this:
+app.use(function* (next) {
+  // skip the rest of the code if the route does not match
+  // `return` here is super important, it won't execute the code below
+  if (this.request.path !== '/') return yield next;
+
+  this.response.body = 'we are at home!';
+})
+```
+
+By `return`ing early, we don't need to bother having any nested `if` and `else` statements. Note that we're checking whether the path **does not match**, then early returning.
 
 
 ## Source Code
@@ -479,7 +547,7 @@ this.cookies.set('name', 'tobi', { signed: true });
 
 Return JSON representation. We only bother showing settings. `subdomainOffset` and `env`
 
-##### Error Handling
+#### Error Handling
 
 By default outputs all errors to stderr unless **NODE_ENV** is "test". To perform custom error-handling logic such as centralized logging you can add an "error" event listener:
 
@@ -1324,19 +1392,37 @@ Set response status message to the given value.  (`this.res.statusMessage = msg;
 
 Get response body.  return {Mixed}  (`this._body`)
 
-Set response body to one of the following:  `string` written, `Buffer` written, `Stream` piped, `Object` json-stringified,
-`null` no content response
+Koa supports the following types of bodies:
+
+* Strings
+* Buffers
+* Streams (node piped) (Koa automatically add error handlers)
+* Object (json-stringified)
+* null (no content response)
 
 If response.status has not been set, Koa will automatically set the status to 200 or 204.
 
 ```js
-  // no content
-  if (null == val) {
-    if (!statuses.empty[this.status]) this.status = 204;
-    ...
-  }
+// no content
+if (null == val) {
+  if (!statuses.empty[this.status]) this.status = 204;
+  ...
+}
 
-  if (!this._explicitStatus) this.status = 200;
+if (!this._explicitStatus) this.status = 200;
+```
+
+When setting a stream as a body, Koa will automatically add any error handlers so you don't have to worry about error handling.
+
+```js
+app.use(function* (next) {
+  this.response.type = 'application/javascript';
+  this.body = fs.createReadStream('some_file.txt'); // koa will automatically handle errors and leaks
+});
+
+app.use(function* (next) {
+  this.body = { foo: 'bar' }; // koa will automatically setup Content-type as application/json
+})
 ```
 
 - response.length=     (Getter & Setter)
@@ -1487,9 +1573,11 @@ A Koa middleware is essentially a generator function that returns one generator 
 
 A Koa middleware is also asynchronous decorator functions that decorate all subsequent middleware. How the decorators are implemented and dispatched is an implementation detail.
 
+In Koa, all middleware are essentially decorators for all following middleware
+
 ```js
   // think of `next` as a subapp consisting of all downstream middleware that you'd like to decorate
-  app.use(function* (subapp) {
+  app.use(function* decorator(subapp) {
     // do stuff before the subapp execute <= flow downstream
     yield* subapp
     // do stuff after subapp execute  <= flow upstream
@@ -2243,7 +2331,8 @@ promises is that they are an object returned by a function that maintains the st
 
 - thunks (functions)
 
-Thunks are functions that only have a single argument, a callback. Thunk support only remains for backwards compatibility and may be removed in future versions of co.
+Thunks are asynchronous functions that only have a single argument, a callback. Thunk support only remains for backwards compatibility and may be removed in future versions of co.
+
 
 - array (parallel execution)
 

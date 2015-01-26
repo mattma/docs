@@ -26,6 +26,16 @@ Discover your image weight on the web. Find out the image weight in your pages, 
 ex: webpagetest test <url>
 ex: webpagetest test <url> --wait 8000
 
+5. [lab](https://www.npmjs.com/package/lab)
+
+lab is a simple test utility for node. Unlike other test utilities, lab uses domains instead of uncaught exception and other global manipulation. Our goal with lab is to keep the execution engine as simple as possible, and not try to build an extensible framework. lab works with any assertion library that throws an error when a condition isn't met.
+
+## CSS
+
+1. [KSS](http://warpspire.com/kss/)
+
+Knyle style sheets. Documentation for any flavor of CSS that you’ll love to write. Human readable, machine parsable, and easy to remember. Automatically generate styleguides. [auto generate a styleguide](http://warpspire.com/kss/styleguides/)
+
 ## Beautify and Fix issues in your source
 
 - jsfmt

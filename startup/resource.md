@@ -4,9 +4,13 @@
 
 - [Socialatom](http://socialatomventures.com/)
 
-
+- [Angle](https://angel.co/startupweekend)
 
 
 - [CrunchBase](http://www.crunchbase.com/)
 
 http://techcrunch.com/2015/01/06/announcing-the-8th-annual-crunchies-awards-nominees-vote-now/
+
+- [BlogTrepreneur](http://www.blogtrepreneur.com/)
+
+For busy entreprenurs

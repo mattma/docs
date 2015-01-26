@@ -23,3 +23,8 @@ A huge list of frontend development resources I collected over time. Sorted from
 Mozilla Research Projects, Programming language and javascript libraraies
 
 - [Chinese Blog about web](http://bg.biedalian.com/)
+
+- [Coderops](http://tympanus.net/codrops/category/tutorials/)
+
+in-depth how-tos involving common web development and web design techniques.
+

@@ -77,6 +77,31 @@ fs.createReadStream('data.csv')
   })
 ```
 
+## io.js
+
+- ES6 features
+
+The following list of features are available without using any flags:
+
+Block scoping (let, const)
+Collections (Map, WeakMap, Set, WeakSet)
+Generators
+Binary and Octal literals
+Promises
+New String methods
+Symbols
+Template strings
+
+- New modules
+
+io.js ships with new core modules as well, that can be used without installing from NPM.
+
+* smalloc: a new core module for doing (external) raw memory allocation/deallocation/copying in JavaScript
+* v8: core module for interfacing directly with the V8 engine
+
+[io.js API](https://iojs.org/api/)
+
+
 ## NPM
 
 - `npm run`
