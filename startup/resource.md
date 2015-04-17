@@ -14,3 +14,9 @@ http://techcrunch.com/2015/01/06/announcing-the-8th-annual-crunchies-awards-nomi
 - [BlogTrepreneur](http://www.blogtrepreneur.com/)
 
 For busy entreprenurs
+
+
+- Posts
+
+Really good YC apply paper done by [Dropbox](https://dl.dropboxusercontent.com/u/27532820/app.html)
+Advice from YC. http://paulgraham.com/articles.html

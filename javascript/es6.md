@@ -4,8 +4,7 @@ Note from [Understanding ES6](https://leanpub.com/understandinges6/read/#leanpub
 
 ECMAScript Language Specfication, Edition 6
 
-Javascript Engines:
-  new versions = forced upgrades, Must run all existing code. ES6 only adds features.
+Javascript Engines: new versions = forced upgrades, Must run all existing code. ES6 only adds features.
 
 ## Resources:
 
@@ -106,13 +105,13 @@ re({raw:'line1: (words )*\nline2: \w+', cooked:'line1: (words )*\nline2: \w+'})
 
 * Typed Array
 
-## Details
+## ECMAScript 6 Features
 
 1. String
 
 - normalize()
 
-DS6 supports the four Unicode normalization forms through a new method on strings. This method optionally accepts a single parameter, one of "NFC" (default), "NFD", "NFKC", or "NFKD".
+ES6 supports the four Unicode normalization forms through a new method on strings. This method optionally accepts a single parameter, one of "NFC" (default), "NFD", "NFKC", or "NFKD".
 
 ```js
     // strings in a values array are converted into a normalized form so that the array can be sorted appropriately.
@@ -131,7 +130,9 @@ DS6 supports the four Unicode normalization forms through a new method on string
     });
 ```
 
-- RegExp `u` flag, `y` flag
+- Unicode - RegExp `u` flag, `y` flag
+
+Non-breaking additions to support full Unicode, including new unicode literal form in strings and new RegExp `u` mode to handle code points, as well as new APIs to process strings at the 21bit code points level.
 
 u for “Unicode”, it allows RegExp to correctly match the string by characters. Unfortunately, ES6 does not have a way of determining how many code points are present in a string.
 
@@ -141,6 +142,13 @@ u for “Unicode”, it allows RegExp to correctly match the string by character
     console.log(text.length);           // 2
     console.log(/^.$/.test(text));      // false
     console.log(/^.$/u.test(text));     // true
+    "𠮷".match(/./u)[0].length == 2;  // new RegExp behaviour, opt-in ‘u’
+    "𠮷".codePointAt(0) == 0x20BB7;  // new String ops
+
+    // for-of iterates code points
+    for(var c of "𠮷") {
+      console.log(c);
+    }
 ```
 
 y (sticky) flag indicates that the next match should be made starting with the value of lastIndex on the regular expression. sticky regular expressions have an implied ^ at the beginning, indicating that the pattern should match from the beginning of the input.
@@ -293,7 +301,6 @@ Math.sinh(x)    Returns the hyperbolic sine of x.
 Math.tanh(x)    Returns the hyperbolic tangent of x.
 Math.trunc(x)   Removes fraction digits from a float and returns an integer.
 
-
 3. Object
 
 - Object.is(value1, value2)
@@ -342,7 +349,7 @@ returns the prototype (i.e. the value of the internal [[Prototype]] property) of
 
 - Destructuring Assignment
 
-pulling data out of objects and arrays. destructuring assignment, which systematically goes through an object or array and stores specified pieces of data into local variables.
+pulling data out of objects and arrays. destructuring assignment, which systematically goes through an object or array and stores specified pieces of data into local variables. Destructuring is fail-soft, similar to standard object lookup foo["bar"], producing undefined values when not found.
 
 If the right side value of a destructuring assignment evaluates to null or undefined, an error is thrown.
 If the property with the given name doesn’t exist on the object, then the local variable gets a value of undefined.
@@ -360,6 +367,32 @@ If the property with the given name doesn’t exist on the object, then the loca
   }
   var [date, month, , ,] = equinox();
   console.log("This year's equinox was on " + date + month); // This year's equinox was on 20March
+```
+
+```js
+// list matching
+var [a, , b] = [1,2,3];
+
+// object matching
+var { op: a, lhs: { op: b }, rhs: c } = getASTNode()
+
+// object matching shorthand
+// binds `op`, `lhs` and `rhs` in scope
+var {op, lhs, rhs} = getASTNode()
+
+// Can be used in parameter position
+function g({name: x}) {
+  console.log(x);
+}
+g({name: 5})
+
+// Fail-soft destructuring
+var [a] = [];
+a === undefined;
+
+// Fail-soft destructuring with defaults
+var [a = 1] = [];
+a === 1;
 ```
 
 Property value shorthand:  `{x, y}` is the same as `{x: x, y: y}`
@@ -412,6 +445,8 @@ console.log(secondColor);   // "green"
 
 - Object Literal
 
+Object literals are extended to support setting the prototype at construction, shorthand for `foo: foo` assignments, defining methods and making super calls. Together, these also bring object literals and class declarations closer together, and let object-based design benefit from some of the same conveniences.
+
 ```js
 // ES5
 var obj = Object.create(someObject);
@@ -428,11 +463,45 @@ let obj = {
 }
 ```
 
+```js
+var obj = {
+    // __proto__, support comes from the JavaScript engine running your program. Although most support the now standard property
+    __proto__: theProtoObj,
+    // Shorthand for ‘handler: handler’
+    handler,
+    // Methods
+    toString() {
+     // Super calls
+     return "d " + super.toString();
+    },
+    // Computed (dynamic) property names
+    [ "prop_" + (() => 42)() ]: 42
+};
+```
+
 4. Variable
 
 The let and const block bindings introduce lexical scoping to JavaScript. These declarations are not hoisted and only exist within the block in which they are declared. That means behavior that is more like other languages and less likely to cause unintentional errors, as variables can now be declared exactly where they are needed.
 
 It’s expected that the majority of JavaScript code going forward will use let and const exclusively, effectively making var a deprecated part of the language.
+
+Block-scoped binding constructs. let is the new var. const is single-assignment. Static restrictions prevent use before assignment.
+
+```js
+function f() {
+  {
+    let x;
+    {
+      // okay, block scoped name
+      const x = "sneaky";
+      // error, const
+      x = "foo";
+    }
+    // error, already declared in block
+    let x = "inner";
+  }
+}
+```
 
 - let && Block bindings
 
@@ -878,9 +947,9 @@ ECMAScript 6 also allows block-level functions in nonstrict mode, but the behavi
     console.log(typeof doSomething);            // "function"
 ```
 
-- Arrow Function
+- Arrow Function ( => syntax )
 
-arrow functions are designed to be used in places where anonymous functions have traditionally been used. They are not really designed to be kept around for long periods of time, hence the inability to use arrow functions as constructors. Arrow functions are best used for callbacks that are passed into other functions.
+arrow functions are designed to be used in places where anonymous functions have traditionally been used. They are not really designed to be kept around for long periods of time, hence the inability to use arrow functions as constructors. Arrow functions are best used for callbacks that are passed into other functions. Unlike functions, arrows share the same lexical this as their surrounding code.
 
 Both typeof and instanceof behave the same with arrow functions as they do with other functions. Also like other functions, you can still use call(), apply(), and bind(), although the this-binding of the function will not be affected.
 
@@ -991,6 +1060,28 @@ Because curly braces are used to denote the function’s body, an arrow function
 
     // Also, since the this value is statically bound to the arrow function
     // you cannot change the value of this using call(), apply(), or bind().
+```
+
+```js
+// Expression bodies
+var odds = evens.map(v => v + 1);
+var nums = evens.map((v, i) => v + i);
+
+// Statement bodies
+nums.forEach(v => {
+  if (v % 5 === 0)
+    fives.push(v);
+});
+
+// Lexical this
+var bob = {
+  _name: "Bob",
+  _friends: [],
+  printFriends() {
+    this._friends.forEach(f =>
+      console.log(this._name + " knows " + f));
+  }
+}
 ```
 
 11. Module
@@ -1186,7 +1277,7 @@ new MyClass();
 
 12. Class
 
-It is a representation of an object. It forms the blueprint, while an object is an instance of a class. Behind the scene, JS create a constructor function, and manipulate prototype properties on them, like what we did in ES5, no change.
+It is a representation of an object. It forms the blueprint, while an object is an instance of a class. Behind the scene, JS create a constructor function, and manipulate prototype properties on them, like what we did in ES5, no change. Classes support prototype-based inheritance, super calls, instance and static methods and constructors.
 
 ```js
   class Language {
@@ -1241,6 +1332,24 @@ We can extend the class to implement a sub-class MetaLanguage that will inherit 
     }                                                                }
     summary() {
       return this.version + " : " + super()
+    }
+  }
+
+  class SkinnedMesh extends THREE.Mesh {
+    constructor(geometry, materials) {
+      super(geometry, materials);
+
+      this.idMatrix = SkinnedMesh.defaultMatrix();
+      this.bones = [];
+      this.boneMatrices = [];
+      //...
+    }
+    update(camera) {
+      //...
+      super.update();
+    }
+    static defaultMatrix() {
+      return new THREE.Matrix4();
     }
   }
 ```
@@ -1394,7 +1503,7 @@ Hard way, implement `[Symbol.iterator]` manually to see what is behind the scene
 
 ```js
   class Company {
-    construtor() {
+    constructor() {
       this.employees = [];
     }
     addEmployees(...names) {
