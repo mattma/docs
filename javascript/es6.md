@@ -1943,3 +1943,24 @@ When use `yield*` will return each item in String representation of the value, n
         yield* (for (item of items) if(predicate(item)) item);
     }
 ```
+
+## Async & Await
+
+async and await: With async functions, you can await on a promise. This halts the function in a non-blocking way, waits for the promise to resolve & returns the value. If the promise rejects, it throws with the rejection value, so you can deal with it using catch.
+
+Note: `await` within an arrow function is not allowed
+
+```js
+async function loadStory() {
+  try {
+    let story = await getJSON('story.json');
+    addHtmlToPage(story.heading);
+    for (let chapter of story.chapterURLs.map(getJSON)) {
+      addHtmlToPage((await chapter).html);
+    }
+    addTextToPage("All done");
+  } catch (err) {
+    addTextToPage("Argh, broken: " + err.message);
+  }
+}
+```

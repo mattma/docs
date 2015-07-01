@@ -1,3 +1,8 @@
+https://github.com/eoinkelly/ember-runloop-handbook
+https://gist.github.com/kristianmandrup/ae3174217f68a6a51ed5
+https://gist.github.com/rwjblue/8816372
+http://www.programwitherik.com/top-5-best-resources-for-ember-js/
+
 ## Source Code
 
 - packages/container
@@ -142,3 +147,135 @@ The big workflow difference between Ember apps and native mobile apps is in how 
 HTML is how we bootstrap an Ember app, let us control which version of the app to launch
 
 Solution: HTML page should be managed and deployed as part of staitic asset deployment process. HTML page should be served by the API server, but updates should not require re-deploying th server app or restarting server processes.
+
+
+## Service
+
+additional functionality to ember app instead of putting inside controller. Service make conventional and declarative imperatively via initializers and injections. Service simply extends the `Ember.Object` base class.
+
+Services are automatically detected and registered by placing them in the "services" directory. To implement a service,`export default Ember.Service.extend();`
+
+To help nudge users in the right direction, services should be opt-in rather than opt-out.
+
+Services are singletons, and the singleton is injected into every instantiated object that matches the service's availableIn criteria. The name of the service is used to determine which property to set on the new instance.
+
+Ember 1.x has exposed two APIs for managing dependency injection. The first is the application initializer API, using register and inject methods on an application instance. The second allows configuration of an injection on controllers via `needs`. The new injected properties offer a more declarative API for dependency injection.
+
+Use Ember.inject.service() to inject a service with the same name as the property it is injected as. Ex: the storage service is injected onto the storage property:
+
+```js
+// Look for service in // app/services/storage.js
+export default Ember.Component.extend({
+  // Using Ember.inject.service() we can tell Ember that we need our storage service in this Component. Ember will then go off and lazy load our service at runtime. Name something different by defining the name of the function in 1st arg, So now, This component will have a property via `this.get('storage')` to access "storage" service methods and properties. The injected service property is lazy-loaded so you must use `this.get` to force the instantiation/lookup of it.
+  storage: Ember.inject.service()
+  // optional: Passing a name to the service() method allows a different service to be injected. // app/services/local-storage.js
+  // storage: Ember.inject.service('local-storage')
+});
+```
+
+in a larger applications where we have to request the service in each controller and route. Use DI with initialzers.
+
+```js
+// app/initializers/store.js
+export default function initialize (container, app) {
+    app.inject('route', 'store', 'service:store');  //  inject things into certain areas of it
+    app.inject('controller', 'store', 'service:store');
+    app.inject('route:routeName', 'myService', 'service:myService');  // pick and choose specific routes or controllers
+}
+export default {
+    name: 'store',
+    initialize: initialize
+}
+
+// Now if I wanted to access methods on this store I can do it like so:
+// app/routes/index.js
+import Ember from 'ember'
+export default Ember.Route.extend({
+    model: function () {
+        return this.store.fetchPerson();
+    }
+});
+```
+
+## dependency injection (DI)
+
+It refers to a dependent object being injected onto another object during instantiation. Sometimes an Ember.js library will use dependency injection to expose its API to developers. An example of this is Ember-Data, which injects its store into all routes and controllers.
+
+service lookup, describes when a dependency is created or fetched on demand. Service lookup is the simpler pattern, DI and SL share the same goals: Isolate responsibilities in an application, Avoid the use of global variables and instances (important for testing), Allow a single object instance to represent state, but share that state with other objects.
+
+## {{component}} helper
+
+It could render components dynamically by name.
+
+## Component
+
+- Communication Between Components
+
+A child component can communicate with a parent in a number of ways, common way: `sendAction`.
+
+```js
+// a parent component can tell a child component what its primary action is or give a named action to its children
+{{#each people as |person|}}
+  {{x-person person=person action="receiveFromChild" notifyer=this}}
+{{/each}}
+
+// And the child component can then call this action:
+App.XPersonComponent = Ember.Component.extend({
+  actions: {
+    callParent: function(person) {
+      this.sendAction("action", person);
+    }
+  },
+```
+
+Parent Component calling Children. use the `actions up and data down` paradigm where you push data changes down to the child components.
+
+Here, demo calling children without data change.
+
+The first way I solved this was to use Ember.Evented.
+
+```js
+// Parent component: A component can mix in the Ember.Evented mixin:
+App.XPeopleComponent = Ember.Component.extend(Ember.Evented, {
+  actions: {
+    callChildren: function() {
+      this.trigger('parentCall');  //  to broadcast an event to any listening children.
+    },
+    receiveFromChild: function(person) {
+      alert("received " + person.get('name'));
+    }
+
+// Child component: can subscribe to these events
+App.XPersonComponent = Ember.Component.extend({
+  _setup: Ember.on('didInsertElement', function(){
+    // subscribes to the event and supplies a handler which will be called when the parent triggers the event.
+    // 'notifyer' comes from attributes defined in template, see templates above
+    this.get('notifyer').on('parentCall', this, 'onParentCall');
+  }),
+  onParentCall: function() {
+    alert('parent called with ' + this.get('person.name'));
+  }
+});
+```
+
+Second way, child component to register itself with the parent:
+
+```js
+App.XPersonComponent = Ember.Component.extend({
+  _setup: Ember.on('didInsertElement', function(){
+     var parent = this.nearestOfType(App.XPeopleComponent);  // The child component finds the parent
+     parent.registerChild(this);
+  }),
+  parentCalling: function() {
+    alert('parent called with ' + this.get('person.name'));
+  }
+});
+
+// Below is the registerChild method that is used to register the child component:
+App.XPeopleComponent = Ember.Component.extend( {
+  children: Ember.A(),
+  registerChild: function(child) {
+    this.children.pushObject(child);
+  }
+});
+```

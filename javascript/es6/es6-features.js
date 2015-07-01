@@ -422,6 +422,23 @@ let customLegoman = new CustomLegoMan("Some OtherName");
 console.log( customLegoman.sayName() );  // HI, I'm aaron
 console.log( customLegoman.myOtherName ); // My name is aaron; Call me Some OtherName
 
+// new way
+class Animal {
+  constructor(name) {
+    this.name = name;
+  }
+  breathe() {
+    console.log(`${this.name} is breathing`);
+  }
+}
+// old way
+function Animal(name) {
+  this.name = name;
+}
+Animal.prototype.breathe = function() {
+  console.log(`${this.name} is breathing`);
+}
+
 /*
   Proxies
   define the sematics of an object in Javascript

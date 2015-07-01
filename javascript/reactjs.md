@@ -2,19 +2,56 @@
 
 A UI library with the creation of interactive, stateful and reusable UI components.
 
-#### Benefits:
+#### Benefits
 
 * one-way data flow
 * easy component lifecycle methods
 * declarative components
-* Isomorphic Javascript:  Run one codebase on client and server (This is the concept behind frameworks like Rendr, Meteor & Derby.)
+* Isomorphic Javascript: Run one codebase on client and server (This is the concept behind frameworks like Rendr, Meteor & Derby.)
 * Virtual DOM: top-down rendering. selectively renders subtrees of nodes based upon state changes. It does the least amount of DOM manipulation possible in order to keep your components up to date.
 
 #### Single responsibility principle
 
-It states that every class should have responsibility over a single part of the functionality provided by the software, and that responsibility should be entirely encapsulated by the class. All its services should be narrowly aligned with that responsibility.
+Single responsibility principle states that every class should have responsibility over a single part of the functionality provided by the software, and that responsibility should be entirely encapsulated by the class. All its services should be narrowly aligned with that responsibility.
 
-In a React application, you should break down your site, page or feature into smaller pieces of components, like component-driven development. The goal is to have everything in one place. single responsibility. It makes a component extremely flexible and reusable.
+In a React application, you should break down your site, page or feature into smaller pieces of components, using component-driven development. The goal is to have everything in one place, single responsibility. It makes a component extremely flexible and reusable.
+
+#### React way
+
+1. Component
+
+View-part of the MVC. The primary building block. Component attaches event handlers and binds the data contained in `props` and `state`. If a component need to change:
+
+* if it is the component's parent, parent could change its props, and render its child.
+* if it is the component's self, independently of its parent (due to other events), it has to use `state`.
+* Avoid using `state` inside component
+
+2. props & state: both are perperties
+
+For data that’s relevant only to the view and nothing else, use `state`.
+For any data that’s pertinent to the class but not the view itself, use `props`.
+Data will flow in one direction. React transform the model into UI and handle the event.
+
+props \
+           => re-render => DOM (model+component, trigger "events" back to `state`)
+state  /
+
+* props (cannot change/immutable)
+
+Component maintains an immutable property and supplied as attributes.
+Props is designed to pass in from parent component to the child componment as a static/immutable value or a method.
+Props cannot be changed, has to push to state and change state.
+
+Any changes to a prop variable will trigger an automatic re-render of the appropriate portion of the view (both parent and child). Those changes can come from within the view itself, or from the parent view, or any child views that our view has. It allows us to pass around some data between various views and have it all stay in sync.
+
+* state (can change/mutable)
+
+Represents the user-driven state of the UI. State is maintained/updated by the component.
+State contains the internal data store (object) of a component (internal changes to the view), should be kept to a minimum, managed by a common ancestor.
+
+Just like props, any changes to state will trigger a re-render of the appropriate elements in the view, with one condition: you have to call the `setState` method. Always use `setState` Without it, your changes won’t be reflected on your view.
+
+`getInitialState` function is required when using internal state to indicates to the view what the initial state should be. Make sure to include this function even if your state is empty to begin with; an empty state is still a state.
 
 ## JSX
 
@@ -24,31 +61,28 @@ It allows us to write HTML like syntax which gets transformed to lightweight Jav
 
 ```js
 // case 1:
-// ComponentName become javascript function call with the same name.
+// ComponentName(ex: "Hello") become javascript function call with the same name.
 // the content of the component become the 2nd argument of function
-var reactJsx = <Component> content </Component>;
+var jsx = <Hello> content </Hello>;
 // convert to valid javascript code
-var reactJsx = Component(null, "content");
+var jsx = Hello(null, "content");
 
 // case 2:
-// if Component contain attributes. Jsx converts it into javascript object.
-// become the first argument of the functon call.
-var reactJsx = <Component att1="a" att2="b"> content </Component>;
+// if Component contain attributes. Jsx converts it into javascript object. become the first argument of the functon call.
+var jsx = <Component att1="a" att2="b"> content </Component>;
 // convert to valid javascript code
-var reactJsx = Component({att1: "a", att2: "b"}, "content");
+var jsx = Component({att1: "a", att2: "b"}, "content");
 
 // case 3:
 // if Component contain nested element. Nested element recursively compile into javascript functions
-// they become the additonal argument to the parent functon.
-var reactJsx = <Component att1="a" att2="b"> <Inner /> </Component>;
+// become the additonal argument to the parent functon.
+var jsx = <Component att1="a" att2="b"> <Inner /> </Component>;
 // convert to valid javascript code
-var reactJsx = Component({att1: "a", att2: "b"}, Inner(null) );
+var jsx = Component({att1: "a", att2: "b"}, Inner(null) );
 ```
 
 ```js
 // The braces let us use plain JavaScript
-var names = [{id: 1, first: 'matt'}, {id: 2, first: 'kelly'}];
-
 var Name = React.createClass({
   render: function () {
     return (
@@ -58,220 +92,288 @@ var Name = React.createClass({
     );
   }
 });
-React.render(<Name names={names} />, document.getElementById('main'));
+var names = [{id: 1, first: 'matt'}, {id: 2, first: 'kelly'}];
+React.render(<Name names={names} />, document.body);
 ```
 
+- `React.DOM`
+
+It gives you a bunch of factories for HTML elements. `React.createFactory` is just a helper that binds your component class to `React.createElement` so you can make your own factories. Unfortunately, you'll then have to juggle two things as sometimes you need the class vs. the factory.
+
 ```js
+// if HTML5 elements
 <div id="greeting-container" className="container">
   <Greeting name="World"/>
 </div>
 
 React.createElement(
   "div",
-  {
-    id: "greeting-container",
-    className: "container"
-  },
+  {id: "greeting-container", className: "container"},
   React.createElement(Greeting, {name: "World"})
 )
 ```
 
-`React.DOM` gives you a bunch of factories for HTML elements. `React.createFactory` is just a helper that binds your component class to `React.createElement` so you can make your own factories. Unfortunately, you'll then have to juggle two things as sometimes you need the class vs. the factory.
-
-
 ```js
-// React.DOM
-var R = React.DOM;
 var Greeting = React.createFactory(GreetingClass);
-
 React.render(
-  R.div({id: "greeting-container", className: "container"},
+  React.DOM.div(
+    {id: "greeting-container", className: "container"},
     Greeting({name: "World"})
   ),
   document.body
 );
 ```
 
-## React way
+## [Virtual Dom Terminology](https://gist.github.com/sebmarkbage/fcb1b6ab493b0c77d589#file-react-terminology-md)
 
-* Component
+A JavaScript representation of the actual DOM and rebuild full HTML5 element implementation of the DOM in lightweight javascript object. Instead of constructing a physical DOM directly from a template file/script/function, the Component generates an intermediate DOM that is a stand-in for the real HTML DOM. An additional step is then taken to translate this intermediate DOM into the real HTML DOM. It is independent of browser, Whenever the state is changed, React create a Virtual DOM tree, it diff the current state of Virtual DOM(computed after some data changes) and previous state(computed befores some data changes),  then compare changes and only applies the difference. It uses components over templates.
 
-View-part of the MVC triad takes prominence. The primary building block. Component also attaches event-handlers and binds the data contained in props and state. If a component need to change, if it is the component's parent, parent could change its props, and render its child. independently of its parent (due to other events), it has to use `state`. Avoid state as less as possible.
+#### [React's diff algorithm](http://calendar.perfplanet.com/2013/diff/)
 
-- props & state
+Tree representation of the DOM and re-calculates all subtrees when its’ parent got modified (marked as dirty), you should be aware of your model changes, because the whole subtree will be re-rendered then. React's rendered HTML markup contains data-reactid attributes, which helps React tracking DOM nodes.
 
-Input will add properties - props(cannot change/immutable) and state(can change/mutable). Try not do designed the component using state. Data will flow in one direction. React transform the model into UI and handle the event.
+- React observer model
 
-props \
-           => re-render => DOM (model+component, trigger "events" back to `state`)
-state  /
+React uses an observer model instead of dirty checking (continuous model checking for changes). so it doesn't have to calculate what is changed, it knows immediately, then React builds the tree representation of the DOM in the memory and calculates which DOM element should change. React tries to keep as much DOM elements untouched as possible.
 
-* props
+(1) signal to notify our app some data has changed via `setState())`.
+(2) causing re-render virtual DOM.
+(3) React runs a "diffing" algorithm on previous virtual DOM with new virtual DOM. (identifies what has changed)
+(4) put the minimal set of DOM mutations in a queue
+(5) Batch exectutes all updates at once. Only update real DOM with necessary changes via reconciliation (updates the DOM with the results of diff)
 
-Component maintains an immutable property and supplied as attributes. Props is designed to pass in/down to the child componment as a static(immutable) value or a method by parent component. props cannot be changed, has to push to state and change state.
+The result of render is not an actual DOM node, is a lightweight JavaScript objects, called Virtual DOM. React use it to find the minimum number of steps to go from the previous render to the next.
 
-Props specifically used to pass data into a React view (From parent to child) and any changes to a prop variable will trigger an automatic re-render of the appropriate portion of the view (both parent and child). Those changes can come from within the view itself, or from the parent view, or any child views that our view has. This is pretty handy, as it allows us to pass around some data between various views and have it all stay in sync.
+Finding the minimal number of modifications between two arbitrary trees is a `O(n^3)` problem. But React uses `O(n)`. React only tries to reconcile trees level by level. This drastically reduces the complexity and isn’t a big loss as it is very rare in web applications to have a component being moved to a different level in the tree.
 
-* state
+1. component
 
-Represents the user-driven state of the UI. State is designed to maintain/update by the component. State can be changed. use `getInitailState()` to retrieve the state. State contains the internal data store (object) of a component, should be kept to a minimum, managed by a common ancestor.
+A React app is usually composed of many user defined components that eventually turns into a tree composed mainly of divs. This additional information is being taken into account by the diff algorithm as React will match only components with the same class.
 
-State allows us to keep track of internal changes to the view. Just like props, any changes to state will trigger a re-render of the appropriate elements in the view, with one condition: you have to call the `setState` method. Always use `setState` Without it, your changes won’t be reflected on your view. The `getInitialState` function is required when using internal state to indicates to the view what the initial state should be. Make sure to include this function even if your state is empty to begin with; an empty state is still a state.
+Ex: if a `<Header />` is replaced by an `<ExampleBlock />`, React will remove the header and create an example block. We don’t need to spend precious time trying to match two components that are unlikely to have any resemblance.
 
-For data that’s relevant only to the view and nothing else, use state. Any changes also re-render the view. For any data that’s pertinent to the class but not the view itself, you could use a private variable, but I’d still probably use state; it’s what it’s for.
+2. Rendering
 
-#### Components
-
-Component is self contain units of functionality. It publishs a simple interface, define its input as property, output as a callback. It can be freely nested inside each other. Responsible to render contents of the component and handle any events which called in it.
-
-Every component is required to have a `render` method because render is essentially the template for our component. Rendering a component means linking it to a DOM element and populating that DOM element.
-
-Every component has a state object and a props object. To set an initial state before any interaction occurs, use the `getInitialState` method. Calling `setState` set the new state and triggers UI updates and is the bread and butter of React’s interactivity.
-
-Each component has the ability to manage its own state and pass its state down to child components if needed. If you have a multi component hierarchy, a common parent component should manage the state and pass it down to its children components via "props".
-
-Components composes the UI of your application by assembling a tree of Components. Each Component (correspond each element in the DOM) provides an implementation for the `render()` method, where it creates the intermediate-DOM. Calling `React.render()` on the root Component results in recursively going down the Component-tree and building up the intermediate-DOM. The intermediate-DOM is then converted into the real HTML DOM.
-
-- Transient state
-
-component to just hold onto that state rather than maintaining it externally. React has a powerful mechanism for setting and using this internal state.
-
-To make it stateful, we need to use two things. The getInitialState method allows us to provide an initial state for our component, and the setState method lets us change the state of our component. Any time we call setState, a re-render will automatically occur. Note that setState is asynchronous though. The re-render will occur when React decides it's ready. In modern browsers, this will generally happen no less than 1/60 of a second later. (Modern browsers render 60 times per second, and React hooks into this via requestAnimationFrame.)
-
-- Mounted & Update & Unmounted states
-
-The render method is the only required spec for creating a component, but there are several lifecycle methods & specs we can use that are mighty helpful when you actually want your component to do anything.
-
-The Component comes to life after being `Mounted`. Mounting results in going through a render-pass that generates the component-tree (intermediate-DOM). This tree is converted and placed into a container-node of the real DOM.
-
-Once mounted, the component stays in the `Update` state. A component gets updated when you change state using `setState()` or change props using `setProps()`. This in turn results in calling `render()`, which brings the DOM in sync with the data (props + state). Between subsequent updates, React will calculate the delta between the previous component-tree and the newly generated tree.
-
-The final state is `Unmounted`. This happens when you explicitly call `React.unmountAndReleaseReactRootNode()` or automatically if a component was a child that was no longer generated in a `render()` call.
-
-- [Component LifeCycle](http://facebook.github.io/react/docs/component-specs.html)
-
-ex: This pattern is often useful for listening to events. (In fact, it's how Flux works.) Just listen to the event when the component is mounted. Set the state when the event happens, and the component gets re-rendered. Clean up before the component is unmounted.
-
-We use getInitialState again to set an initial opacity state.
-We hook into componentDidMount to do something when the component is added to the DOM. Here, we set this.timer to an interval timer that will decrease the opacity to 50% and then bump it back up to 100%.
-We hook into componentWillUnmount to clean up our timer.
-We render using the opacity in the state.
-
-Each component you make will have its own lifecycle events that are useful for various things. For example, if we wanted to make an ajax request on the initial render and fetch some data, where would we do that? Or, if we wanted to run some logic whenever our props changed, how would we do that? The different lifecycle events are the answers to both of those.
+Component has required pure `render` function(f), take data(d) and produce Virtual DOM(v).
 
 ```js
-// Component Life Cycle
-var FriendsContainer = React.createClass({
-  getInitialState: function(){
-    alert('In getInitialState');
-    return {
-      name: 'Tyler McGinnis'
-    }
-  },
+f(d) //=> v   // same data in, always same view out
+f(d) //=> v+  // different data in (represented by `+`), get different view out
 
-  // Invoked once before first render
-  componentWillMount: function(){
-      // Calling setState here does not cause a re-render
-      alert('In Component Will Mount');
-  },
+diff(v, v+) // => changes // compare previous virtual DOM, and compute mininal different change
+diff(v+, v) // => undo // go back in time, get "undo" for free
+```
 
+- Batching
 
-  // Invoked once after the first render
-  componentDidMount: function(){
-      // You now have access to this.getDOMNode()
-      alert('In Component Did Mount');
-  },
+When `setState` is called on a component, React will mark it as dirty. At the end of the event loop, React looks at all the dirty components and re-renders them. This batching means that during an event loop, there is exactly one time when the DOM is being updated.
 
-  // Invoked whenever there is a prop change
-  // Called BEFORE render
-  componentWillReceiveProps: function(nextProps){
-      // Not called for the initial render
-      // Previous props can be accessed by this.props
-      // Calling setState here does not trigger an additional re-render
-      alert('In Component Will Receive Props');
-  },
+- Sub-tree Rendering
 
-  // Called IMMEDIATELY before a component is unmounted
-  componentWillUnmount: function(){},
+When `setState` is called, the component rebuilds the Virtual DOM for its children. If you call `setState` on the root element, then the entire React app is re-rendered. All the components, even if they didn’t change, will have their `render` method called. This may sound scary and inefficient but in practice, this works fine because we’re not touching the actual DOM.
 
-  render: function(){
-    return (
-      <div>
-        Hello, {this.state.name}
-      </div>
-    )
-  }
+You usually don’t call `setState` on the root node every time something changes. You call it on the component that received the change event or couple of components above. You very rarely go all the way to the top. This means that changes are localized to where the user interacts.
+
+- Selective Sub-tree Rendering
+
+prevent some sub-trees to re-render. If you implement the following method on a component: `boolean shouldComponentUpdate(object nextProps, object nextState)`, based on the previous and next props/state of the component, you can tell React that this component did not change and it is not necessary to re-render it. When properly implemented, this can give you huge performance improvements. But keep in mind this function is going to be called all the time, so make sure that it takes less time to compute than heuristic than the time it would have taken to render the component, even if re-rendering was not strictly needed.
+
+#### React's terminology, there are five core types that are important to distinguish
+
+1. ReactElement
+
+The primary type in React is the `ReactElement`. A ReactElement is a light, stateless, immutable, virtual representation of a DOM Element. It is a virtual DOM.
+It has four properties: `type`, `props`, `key` and `ref`. It has no methods and nothing on the prototype.
+
+```js
+// create one of these object thouth `React.createElement`
+var root = React.createElement('div');
+```
+
+To render a new tree into the DOM, pass `ReactElements` (here: root) to `React.render` along with a regular DOM `Element` (`HTMLElement` or `SVGElement`).
+
+```js
+React.render(root, document.body);
+```
+
+To add properties/attribuets to a DOM element, pass a properties object as the 2nd argument and children to the 3rd argument.
+
+```js
+var child = React.createElement('li', null, 'Text Content');
+var root = React.createElement('ul', { className: 'my-list' }, child);
+React.render(root, document.body);
+```
+
+If you use React JSX, then these `ReactElements` are created for you. So this is equivalent:
+
+```js
+var root = <ul className="my-list"> <li>Text Content</li> </ul>;
+React.render(root, document.body);
+```
+
+2. ReactElement Factory
+
+A ReactElement-factory is simply a function that generates a `ReactElement` with a particular `type` property. React has a built-in helper for you to create factories. It's effectively just from original React source code:
+
+```js
+// create a convenient short-hand instead of typing out `React.createElement('div')` all the time.
+function createFactory(type){
+  return React.createElement.bind(null, type);
+}
+
+// usage:
+var div = React.createFactory('div');
+var root = div({ className: 'my-div' });
+React.render(root, document.body);
+```
+
+React already have built-in factories for common HTML tags:
+
+```js
+var root = React.DOM.ul(
+    { className: 'my-list' },
+    React.DOM.li(null, 'Text Content')
+);
+```
+
+If you are using JSX you have no need for factories. JSX already provides a convenient short-hand for creating ReactElements.
+
+3. React Nodes
+
+A ReactNode can be either: `ReactElement`, `string (aka ReactText)`, `number (aka ReactText)`, `Array of ReactNodes (aka ReactFragment)`
+
+These are used as properties of other `ReactElements` to represent children. Effectively they create a tree of `ReactElements`.
+
+4. React Components
+5. React Component Class
+
+use `ReactComponents` to create encapsulations with embedded state. A `ReactComponent` Class is simply just a JavaScript class (or "constructor function"). When this constructor is invoked it is expected to return an object(aka ReactComponent) with at least a `render` method on it.
+
+```js
+// MyComponent  is the ReactComponent
+var MyComponent = React.createClass({
+  render: function() { }
 });
 ```
 
-* componentWillMount
-
-Invoked once before the initial render. If you were to call setState here, no re-render would be invoked. An example of this would be if you’re using a service like firebase, you’d set up your reference to your firebase database here since it’s only invoked once on the initial render.
-
-componentWillMount – This function is called when the view is added to the parent view. It’s fired every time this happens, so it’s a good candidate for doing some initial setup of your view, or for hooking up event handlers and such. It’ll come in handy for implementing our Flux architecture later on.
-
-* componentDidMount
-
-Invoked once after the initial render. Because the component has already been invoked when this method is invoked, you have access to the virtual DOM if you need it. You do that by calling this.getDOMNode(). Now it might seem like if you wanted to make AJAX requests you would do that in componentWillMount, but the devs at facebook actually recommend you do that in componentDidMount. So this is the lifecycle event where you’ll be making your AJAX requests to fetch some data.
-
-* componentWillReceiveProps
-
-This life cycle is not called on the initial render, but is instead called whenever there is a change to props. Use this method as a way to react to a prop change before render() is called by updating the state with setState.
-
-* componentWillUnmount
-
-This life cycle is invoked immediately before a component is unmounted from the DOM. This is where you can do necessary clean up. For example, going back to out firebase example this is the life cycle event where you would clean up your firebase reference you set in componentWillMount.
-
-componentWillUnmount – Opposite of componentWillMount. Fired when the view is no longer rendered in a parent. Useful for unhooking event handlers.
-
-
-// @TODO adding the full docs from http://facebook.github.io/react/docs/component-specs.html
-
-// Life Cycle
-
-`componentWill*` methods are called before the state change
-`componentDid*` methods are called after.
-
-* componentWillMount()  // Invoked once, on both client & server before rendering occurs.
-* componentDidMount()  //  Invoked once, only on the client, after rendering occurs or when a component is mounted on the client
-* componentWillReceiveProps( nextProps )   // @param object
-* shouldComponentUpdate(nextProps, nextState):  // @param object, object.   useful if you want to control when a render should be skipped. Return value determines whether component should update. Used it to squeeze out some performance.
-* componentWillUpdate(nextProps, nextState):  // @param object, object.
-* componentDidUpdate(nextProps, nextState):  // @param object, object.
-* componentWillUnmount()  // Invoked prior to unmounting component.
-
-// State and Props methods: Specs. Predefined View Functions
-
-* getInitialState(): Allow a component to populate its initial state. should return an object. Return value is the initial value for state.
-* setState(): update the state of a component, **merges** the new state with the old state (marked dirty). allow modify the state
-* forceUpdate(): force your component to re-render, never need to use it.
-* getDefaultProps()  // Sets fallback props values if props aren’t supplied. allow you to specify a default (or a backup) value for certain props just in case those props are never passed into the component.
-* propTypes // allow you to control the presence, or types of certain props passed to the child component. With propTypes you can specify that certain props are required or that certain props be a specific type.
-* mixins()  // An array of objects, used to extend the current component’s functionality.
-
-
-setState – As mentioned above, this is the method you call to set the internal state of your React view. If you set the state directly (ie, this.state.foo = “bar”) your view won’t rerender. As a rule of thumb, always use setState, as such: this.setState({ foo: “bar” }).
-forceUpdate – This is a convenience method to force a rerender of the view. It’s useful for instances where you’re updating some variables inside your view that aren’t part of props or state.
-
-
-* render()
-* renderToString(): Isomorphic applications.
-
-Within a component-tree, data should always flow down. A parent-component should set the `props` of a child-component to pass any data from the parent to the child. This is termed as the `Owner-Owned` pair. On the other hand user-events (mouse, keyboard, touches) will always bubble up from the child all the way to the root component, unless handled in between.
-
-When you create the intermediate-DOM in render(), you can also assign a ref property to a child component. You can then refer to it from the parent using the refs property.
-
-React uses Mixin to extract reusable pieces of behavior that can be injected into disparate Components. You can pass the mixins using the mixins property of a Component.
-
-
-If a component depends on some specific property, there are two ways which could be set. 1) by JSX attribute, or an object returned by `getDefaultProps` method.
-
-* getDefaultProps(): specifies property values to use if they are not explicitly supplied, if defined, would override the existing and also establish some validation rules on these props using `propTypes`. works like `getInitialState()`
-
+Other than for testing, you would normally never call this constructor yourself. React calls it for you. Instead, you pass the `ReactComponent` Class to `createElement` you get a `ReactElement`.
 
 ```js
-// render method only allow to have a single node.
-// Rendering on the page. Native JSX
+// Javscript way
+var element = React.createElement(MyComponent);
+// JSX way
+var element = <MyComponent />;
+```
+
+When this is passed to `React.render`, React will call the constructor for you and create a `ReactComponent`, which returned.
+
+```js
+var component = React.render(element, document.body);
+```
+
+If you keep calling `React.render` with the same type of `ReactElement` and the same container DOM Element it always returns the same instance. This instance is stateful.
+
+```js
+var componentA = React.render(<MyComponent />, document.body);
+var componentB = React.render(<MyComponent />, document.body);
+componentA === componentB; // true
+```
+
+This is why you shouldn't construct your own instance. Instead, `ReactElement` is a virtual `ReactComponent` before it gets constructed. An old and new `ReactElement` can be compared to see if a new `ReactComponent` instance is created or if the existing one is reused.
+
+The `render` method of a `ReactComponent` is expected to return another `ReactElement`. This allows these components to be composed. Ultimately the render resolves into `ReactElement` with a string tag which instantiates a DOM Element instance and inserts it into the document.
+
+- Formal Type Definitions
+
+```js
+// Entry Point
+React.render(ReactElement, HTMLElement | SVGElement)  // => ReactComponent;
+```
+
+```js
+// Nodes and Elements
+ReactNode = ReactElement | ReactFragment | ReactText;
+
+ReactElement = ReactComponentElement | ReactDOMElement;
+
+ReactDOMElement = {
+  type : string,
+  props : {
+    children : ReactNodeList,
+    className : string,
+    etc.
+  },
+  key : string | boolean | number | null,
+  ref : string | null
+};
+
+ReactComponentElement<TProps> = {
+  type : ReactClass<TProps>,
+  props : TProps,
+  key : string | boolean | number | null,
+  ref : string | null
+};
+
+ReactFragment = Array<ReactNode | ReactEmpty>;
+
+ReactNodeList = ReactNode | ReactEmpty;
+
+ReactText = string | number;
+
+ReactEmpty = null | undefined | boolean;
+```
+
+```js
+// Classes and Components
+ReactClass<TProps> = (TProps) => ReactComponent<TProps>;
+
+ReactComponent<TProps> = {
+  props : TProps,
+  render : () => ReactElement
+};
+```
+
+#### Events
+
+React has a built in cross browser events system. The events are attached as properties of components and can trigger methods.
+ex:  `onClick`, `onSubmit`, `onChange`
+
+- `onChange`
+
+It is a React thing and it will call whatever method you specify every time the value in the input box changes.
+
+Ex: User type into the input box → callback is invoked → the state of our component is set to a new value → React re-renders the virtual DOM → React Diffs the change → Real DOM is updated
+
+- Event Delegation
+
+A single event listener is attached to the root of the document. When an event is fired, the browser gives us the target DOM node. In order to propagate the event through the DOM hierarchy, React doesn’t iterate on the virtual DOM hierarchy. every React component has a unique id that encodes the hierarchy. We can use simple string manipulation to get the id of all the parents. By storing the event listeners in a hash map, we found that it performed better than attaching them to the virtual DOM. Here is an example of what happens when an event is dispatched through the virtual DOM.
+
+```js
+// dispatchEvent('click', 'a.b.c', event)
+clickCaptureListeners['a'](event);
+clickCaptureListeners['a.b'](event);
+clickCaptureListeners['a.b.c'](event);
+clickBubbleListeners['a.b.c'](event);
+clickBubbleListeners['a.b'](event);
+clickBubbleListeners['a'](event);
+```
+
+The browser creates a new event object for each event and each listener. This has the nice property that you can keep a reference of the event object or even modify it. However, this means doing a high number of memory allocations. React at startup allocates a pool of those objects. Whenever an event object is needed, it is reused from that pool. This dramatically reduces garbage collection.
+
+## Components
+
+Component is self contain units of functionality. It publishs a simple interface, define its input as property, output as a callback. It can be freely nested inside each other. Responsible to render contents of the component and handle any events which called in it.
+
+Components composes the UI of your application by assembling a tree of Components. Every component is required to have a `render` method because render is essentially the template for our component. Rendering a component means linking it to a DOM element and populating that DOM element. Each Component (correspond each element in the DOM) provides an implementation via `render()` method, where it creates the intermediate-DOM. Calling `React.render()` on the root Component results in recursively going down the Component-tree and building up the intermediate-DOM. The intermediate-DOM is then converted into the real HTML DOM.
+
+Every component has a `state` object and a `props` object. To set an initial state before any interaction occurs, use the `getInitialState` method. Calling `setState` set the new state and triggers UI updates.
+
+If you have a multi component hierarchy, a common parent component should manage its own state and pass it down to its children components via "props".
+
+Three ways to render a component on the page, via JSX or Javascript
+
+```js
+// Rendering on the page and JSX only allow one element. Native JSX
 var App = React.createClass({
   render: function () {
     return <h1>Hello world</h1>
@@ -295,28 +397,164 @@ var App = React.createClass({
   }
 });
 React.render(App(), document.body);
+```
 
-// setup default properties, always return an Object
-// each key would be the property name
-getDefaultProps: function() {
-  return {
-    firstName: 'matt'
-  }
+#### Transient state
+
+Component manage its own state rather than maintaining it externally. To make it stateful, we need to use two things. 1. `getInitialState()` provide an initial state for the component, and 2.`setState()` change the state of the component. Any time we call `setState()`, (it's asynchronous method) a re-render will automatically occur when React decides it's ready. In modern browsers, this will generally happen no less than 1/60 of a second later. (Modern browsers render 60 times per second, and React hooks into this via `requestAnimationFrame`)
+
+- Receiving State from Parent Component (props, propTypes, getDefaultProps)
+
+`props` is the data which is passed to the child component from the parent component. This allows for React architecture to stay pretty straight forward. Handle state in the highest parent component which needs to use the specific data, and if you have a child component that also needs that data, pass that data down as props.
+
+Note: the code that gets returned from `render()` is a representation of what the real DOM should look like.
+
+**It’s important to understand that wherever the data lives, is the exact place you want to manipulate that data. This keeps it simple to reason about your data. All getter/setter method for a certain piece of data will always be in the same component where that data was defined. If you needed to manipulate some piece of data outside where the data lives, you’d pass the getter/setter method into that component as props.**
+
+- State and Props methods: Specs. Predefined View Functions
+
+1. getInitialState()
+
+Allow a component to populate its initial state. should return an object. Return value is the initial value for state.
+
+2. getDefaultProps()
+
+Sets fallback props values if props aren’t supplied. allow you to specify a default (or a backup) value for certain props just in case those props are never passed into the component, always return an Object. Each key would be the property name.
+
+specifies property values to use if they are not explicitly supplied, if defined, would override the existing and also establish some validation rules on these props using `propTypes`. works like `getInitialState()`
+
+If a component depends on some specific property, there are two ways which could be set. 1) by JSX attribute, or an object returned by `getDefaultProps` method.
+
+3. setState()
+
+update/alert the state of a component, **merges** the new state with the old state (marked dirty). allow modify the state.
+
+As a rule of thumb, to update state, always use `setState`, ex: `this.setState({ foo: “bar” })`
+
+4. forceUpdate()
+
+force your component to re-render, never need to use it. This is a convenience method to force a rerender of the view. It’s useful for instances where you’re updating some variables inside your view that aren’t part of props or state.
+
+5. propTypes: {}
+
+allow you to control the presence, or types of certain props passed to the child component. With `propTypes` you can specify that certain props are required or that certain props be a specific type.
+
+6. mixins: []
+
+An array of objects, used to extend the current component’s functionality. React uses Mixin to extract reusable pieces of behavior that can be injected into disparate Components.
+
+7. render()
+
+What we would like our HTML Template to look like.
+
+8. renderToString()
+
+Isomorphic applications.
+
+9. ref
+
+When you create the intermediate-DOM in `render()`, you can also assign a `ref` attribute to a child component or `React.DOM` component. You can access the element from the parent using the `refs` property via `this.refs.<elementName>`. So It provide a way to reference owned components.
+
+```js
+componentDidMount: function () {
+    // update the input element value to "set by ref"
+    this.refs.inp.getDOMNode().value = "set by ref";
 },
-// assign property type, defined if it is required or not
+render: function() {
+    // can dynamically set the value of this input element
+    return <input type="text" ref="inp" />
+}
+```
+
+10. getDOMNode()
+
+get the underlying DOM node from a React component instance.
+
+11. propTypes
+
+assign property type, defined if it is required or not
+
+```js
 propTypes: {
   txt: React.PropTypes.string,
   cat: React.PropTypes.number.isRequired
 }
 ```
 
-- Receiving State from Parent Component (props, propTypes, getDefaultProps)
+#### [Component Life Cycle](http://facebook.github.io/react/docs/component-specs.html)
 
-By our definition above, props is the data which is passed to the child component from the parent component. This allows for our React architecture to stay pretty straight forward. Handle state in the highest most parent component which needs to use the specific data, and if you have a child component that also needs that data, pass that data down as props.
+- Mounted - Update - Unmounted states
 
-Remember that the code that gets returned from our render method is a representation of what the real DOM should look like.
+Each component have its own lifecycle events. For example, make an ajax request on the initial render and fetch some data, or run some logic whenever our props changed.
 
-It’s important to understand that wherever the data lives, is the exact place you want to manipulate that data. This keeps it simple to reason about your data. All getter/setter method for a certain piece of data will always be in the same component where that data was defined. If you needed to manipulate some piece of data outside where the data lives, you’d pass the getter/setter method into that component as props.
+The Component comes to life after being `Mounted`. Mounting results in going through a render-pass that generates the component-tree (intermediate-DOM). This tree is converted and placed into a container-node of the real DOM.
+
+Once mounted, the component stays in the `Update` state. A component gets updated when you change state using `setState()` or change props using `setProps()`. This in turn results in calling `render()`, which brings DOM in sync with the data (props + state). Between subsequent updates, React will calculate the delta between the previous component-tree and the newly generated tree.
+
+The final state is `Unmounted`. This happens when you explicitly call `React.unmountAndReleaseReactRootNode()` or automatically if a component was a child that was no longer generated in a `render()` call.
+
+This pattern is useful for listening to events. (it's how Flux works) Just listen to the event when the component is mounted. Set the state when the event happens, and the component gets re-rendered. Clean up before the component is unmounted.
+
+```js
+// Component Life Cycle
+var FriendsContainer = React.createClass({
+  getInitialState: function(){
+    return { name: 'Tyler McGinnis' }
+  },
+  // Invoked once before first render
+  componentWillMount: function(){
+      // Calling setState here does not cause a re-render
+  },
+  // Invoked once after the first render
+  componentDidMount: function(){
+      // You now have access to this.getDOMNode()
+  },
+  // Invoked whenever there is a prop change Called BEFORE render
+  componentWillReceiveProps: function(nextProps){
+      // Not called for the initial render
+      // Previous props can be accessed by this.props
+      // Calling setState here does not trigger an additional re-render
+  },
+  // Called IMMEDIATELY before a component is unmounted
+  componentWillUnmount: function(){},
+  // render method only allow to have a single node.
+  render: function(){
+    return<div> Hello, {this.state.name} </div>;
+  }
+});
+React.render(<FriendsContainer />, document.body);
+```
+
+`componentWill*` methods are called before the state change
+`componentDid*` methods are called after.
+
+1. componentWillMount
+
+Invoked once on both client and server before the initial render. If call `setState` here, no re-render would be invoked. For example: set up your reference to a database since it’s only invoked once on the initial render.
+
+It is called when the view is added to the parent view. It’s fired every time this happens, so it’s a good candidate for doing some initial setup of your view, or for hooking up event handlers and such.
+
+2. componentDidMount
+
+Invoked once only on the client after the initial render occurs or when a component is mounted on the client. Because the component has already been invoked when this method is invoked, you have access to the virtual DOM via `this.getDOMNode()`. For example, make AJAX requests in `componentWillMount`, but facebook recommend do in `componentDidMount`. So this is the lifecycle event where you’ll be making your AJAX requests to fetch some data.
+
+3. componentWillReceiveProps( nextProps )   // @param object
+
+It is not called on the initial render, is called whenever there is a change to `props`. Use it to react to a prop change before `render()` is called by updating the state with `setState()`.
+
+4. componentWillUnmount
+
+It is invoked immediately before a component is unmounted from DOM. This is where do necessary clean up. For example, clean up database reference.
+
+It is opposite of componentWillMount. Fired when the view is no longer rendered in a parent. Useful for unhooking event handlers.
+
+5. shouldComponentUpdate(nextProps, nextState):  // @param object, object.
+
+useful if you want to control when a render should be skipped. Return value determines whether component should update. Used it to squeeze out some performance.
+
+6. componentWillUpdate(nextProps, nextState):  // @param object, object
+
+7. componentDidUpdate(nextProps, nextState):  // @param object, object
 
 
 
@@ -325,52 +563,30 @@ It’s important to understand that wherever the data lives, is the exact place 
 
 
 
-Virtual DOM  - A JavaScript representation of the actual DOM.
-React.createClass – The way in which you create a new component.
-render (method) – What we would like our HTML Template to look like.
-React.render – Renders a React component to a DOM node.
+React is a library for creating UI and renders your UI and responds to events, V in MVC. React component is a highly cohesive building block for UIs losely coupled with other components. To use components to separate your concerns, with the full power of javascript, not a crippled templating language. Components are reusable, composable. Only put display logic in your components.
 
-getInitialState – The way in which you set the initial state of a component.
-setState – A helper method for altering the state of a component.
-propTypes – Allows you to control the presence, or types of certain props passed to the child component.
-getDefaultProps – Allows you to set default props for your component.
+Design decision: Re-render the whole app on every update. The main problem in software business: data changing over time is the root of all evil.
 
-Component LifeCycle
-componentWillMount – Fired before the component will mount
-componentDidMount – Fired after the component mounted
-componentWillReceiveProps – Fired whenever there is a change to props
-componentWillUnmount – Fired before the component will unmount
+React components are basically just idempotent functions. They describe your UI at any point in time, just like a server-rendered app. Re-rendering on every change, so every place data is displayed is guaranteed to be up-to-date, no data-binding, no model dirty checking, no more explicit DOM operations - everything is declarative.
 
-Events
-onClick
-onSubmit
-onChange
+Building component, not template.
 
-onChange. onChange is a React thing and it will call whatever method you specify every time the value in the input box changes, in this case the method we specified was handleChange.
-
-A user types into the input box → handleChange is invoked → the state of our component is set to a new value → React re-renders the virtual DOM → React Diffs the change → Real DOM is updated.
-
-#### Useful links
-
-[Flux react builder tutorial](https://scotch.io/tutorials/creating-a-simple-shopping-cart-with-react-js-and-flux#getting-started)
-[reapp](http://reapp.io/) An easier, faster way to build apps with React and JavaScript.
-[egghead](https://egghead.io/lessons/jsx-deep-dive) Good Tutorials
-[Tyler Mcginnis's react tutorials](http://tylermcginnis.com/tag/reactjs/)
-[Best tutorial collection](http://spyrestudios.com/the-only-react-js-tutorials-and-resources-youll-need/)
-
-#### Events
-
-React also has a built in cross browser events system. The events are attached as properties of components and can trigger methods.
 
 #### Flux application architecture
 
 - Flux architecture graph
 
+A single direction data flow.
+
+Dispatcher is the traffic controller of the app which ensure until store layer is completely done, then view or anything else can put into the system, Store is the data layer basically updates when it get a new action, view re-render when store says that something has changed. View can send another action back to the system. Avoid cascading effect in the system by preventing nested updates. When a new action is going into the store, they have to wait for the previous one to be finished to take the effect.
+
+```bash
 Action => Dispatcher => Store => View
                     ^                                  |
                     |----- action  ------<|
+```
 
-
+```bash
                                                      Actions   =>   Dispatcher   =>       Callbacks
                                                         ^                                                      |
                                                         |                                                       |
@@ -378,6 +594,7 @@ Web API <=> Web API Utils <=> Action Createors                                St
                                                         ^                                                       |
                                                         |                                                        |
                                                    User interactions  <= React Views <= Change Events + Store Queries
+```
 
 
 It is not a framework or a library. It is simply a new kind of architecture that complements React. Flux focuses on unidirectional data flow or everything happens in one direction. Data flows in as a result of actions. Actions trigger stores (data models) to be updated, which then triggers change events to fire, causing React views to update if needed. The cycle repeats itself as data changes throughout the app. Flux keys: 1) data flow from parent to child via props.  2) pass callbacks for interactions that modify parent state  3) synthetic event system
@@ -665,81 +882,11 @@ var ShoeStoreApp = React.createClass({
 module.exports = ShoeStoreApp;
 ```
 
+
+
 #### Owner Ownee relationship
 
-when one component render out another component.
-
-#### Virtual DOM
-
-Instead of constructing a physical DOM directly from a template file/script/function, the Component generates an intermediate DOM that is a stand-in for the real HTML DOM. An additional step is then taken to translate this intermediate DOM into the real HTML DOM.
-
-To track down model changes and apply them on the DOM (alias rendering): 1. when data has changed 2. which DOM element(s) to be updated.
-
-For the change detection (1) React uses an observer model instead of dirty checking (continuous model checking for changes). That’s why it doesn't have to calculate what is changed, it knows immediately (2) React builds the tree representation of the DOM in the memory and calculates which DOM element should change. React tries to keep as much DOM elements untouched as possible.
-
-React's diffing algorithm uses the tree representation of the DOM and re-calculates all subtrees when its’ parent got modified (marked as dirty), you should be aware of your model changes, because the whole subtree will be re-rendered then. React's rendered HTML markup contains data-reactid attributes, which helps React tracking DOM nodes.
-
-Rebuild full HTML5 element implementation of the DOM in lightweight javascript object.
-
-Component has required pure render function, take data and produce virtual DOM.
-`f(d) = v`   // same data in, always same view out
-`f(d') = v'`  // different data in, get different view out
-`diff(v ,v')` = changes` // compare previous virtual DOM, and compute mininal different change
-`diff(v', v) = undo` // go back in time, get "undo" for free
-
-React can keep track of the difference between the current virtual DOM (computed after some data changes), with the previous virtual DOM (computed befores some data changes)
-
-Signal to notify our app some data has changed (setState())→ Re-render virtual DOM  -> Diff previous virtual DOM with new virtual DOM -> Only update real DOM with necessary changes.
-
-That “signal to notify our app some data has changed” is actually just setState. Whenever setState is called, the virtual DOM re-renders, the diff algorithm runs, and the real DOM is updated with the necessary changes.
-
-Imagine you had an object that you modeled around a person. It had every relevant property a person could possibly have, and mirrored the persons current state. This is basically what React does with the DOM. Now think about if you took that object and made some changes. Added a mustache, some sweet biceps and Steve Buscemi eyes. In React-land, when we apply these changes, two things take place. First, React runs a “diffing” algorithm, which identifies what has changed. The second step is reconciliation, where it updates the DOM with the results of diff.
-
-The way React works, rather than taking the real person and rebuilding them from the ground up, it would only change the face and the arms. This means that if you had text in an input and a render took place, as long as the input’s parent node wasn’t scheduled for reconciliation, the text would stay undisturbed. Because React is using a fake DOM and not a real one, it also opens up a fun new possibility. We can render that fake DOM on the server, and boom, server side React views.
-
-
-
-* [React's diff algorithm](http://calendar.perfplanet.com/2013/diff/)
-
-the result of render is not an actual DOM node. Those are just lightweight JavaScript objects. We call them the virtual DOM. React is going to use this representation to try to find the minimum number of steps to go from the previous render to the next.
-
-Finding the minimal number of modifications between two arbitrary trees is a O(n^3) problem. But React uses O(n). React only tries to reconcile trees level by level. This drastically reduces the complexity and isn’t a big loss as it is very rare in web applications to have a component being moved to a different level in the tree. React only tries to reconcile trees level by level.
-
-* Components
-
-A React app is usually composed of many user defined components that eventually turns into a tree composed mainly of divs. This additional information is being taken into account by the diff algorithm as React will match only components with the same class.
-
-For example if a <Header> is replaced by an <ExampleBlock>, React will remove the header and create an example block. We don’t need to spend precious time trying to match two components that are unlikely to have any resemblance.
-
-* Event Delegation
-
-A single event listener is attached to the root of the document. When an event is fired, the browser gives us the target DOM node. In order to propagate the event through the DOM hierarchy, React doesn’t iterate on the virtual DOM hierarchy. every React component has a unique id that encodes the hierarchy. We can use simple string manipulation to get the id of all the parents. By storing the event listeners in a hash map, we found that it performed better than attaching them to the virtual DOM. Here is an example of what happens when an event is dispatched through the virtual DOM.
-
-```js
-// dispatchEvent('click', 'a.b.c', event)
-clickCaptureListeners['a'](event);
-clickCaptureListeners['a.b'](event);
-clickCaptureListeners['a.b.c'](event);
-clickBubbleListeners['a.b.c'](event);
-clickBubbleListeners['a.b'](event);
-clickBubbleListeners['a'](event);
-```
-
-The browser creates a new event object for each event and each listener. This has the nice property that you can keep a reference of the event object or even modify it. However, this means doing a high number of memory allocations. React at startup allocates a pool of those objects. Whenever an event object is needed, it is reused from that pool. This dramatically reduces garbage collection.
-
-* Rendering - Batching
-
-Whenever you call `setState` on a component, React will mark it as dirty. At the end of the event loop, React looks at all the dirty components and re-renders them. This batching means that during an event loop, there is exactly one time when the DOM is being updated.
-
-* Rendering - Sub-tree Rendering
-
-When setState is called, the component rebuilds the virtual DOM for its children. If you call setState on the root element, then the entire React app is re-rendered. All the components, even if they didn’t change, will have their render method called. This may sound scary and inefficient but in practice, this works fine because we’re not touching the actual DOM.
-
-You usually don’t call setState on the root node every time something changes. You call it on the component that received the change event or couple of components above. You very rarely go all the way to the top. This means that changes are localized to where the user interacts.
-
-* Rendering - Selective Sub-tree Rendering
-
-prevent some sub-trees to re-render. If you implement the following method on a component: `boolean shouldComponentUpdate(object nextProps, object nextState)`, based on the previous and next props/state of the component, you can tell React that this component did not change and it is not necessary to re-render it. When properly implemented, this can give you huge performance improvements. And you want to keep in mind that this function is going to be called all the time, so you want to make sure that it takes less time to compute than heuristic than the time it would have taken to render the component, even if re-rendering was not strictly needed.
+when one component render out another component. Within a component-tree, data should always flow down. A parent-component should set the `props` of a child-component to pass any data from the parent to the child. This is termed as the `Owner-Owned` pair. On the other hand user-events (mouse, keyboard, touches) will always bubble up from the child all the way to the root component, unless handled in between.
 
 #### isomorphic application with React
 
@@ -830,36 +977,6 @@ render: function () {
   return <div style={{fontWeight: 'bold'}}></div>
 }
 ```
-
-- Component organisation
-
-```js
-React.createClass({
-    propTypes: {},
-    mixins : [],
-
-    getInitialState: function() {},
-    getDefaultProps: function() {},
-
-    componentWillMount : function() {},
-    componentWillReceiveProps: function() {},
-    componentWillUnmount : function() {},
-
-    _parseData : function() {},
-    _onSelect : function() {},
-
-    render : function() {}
-})
-```
-
-propTypes : a useful guide to a components expected usage
-mixins:  initially know exactly what external behaviours the component is using/dependent on.
-
-split the life-cycle methods into those that occur before an instance of the component is created (e.g. getInitialState, getDefaultProps) and those which occur during the mounting/updating/mounted cycle (e.g. componentWillMount, shouldComponentUpdate)
-
-custom methods follow the lifecycle methods and be prefixed with an underscore to make them easier to identify. I’ll usually also group these by utility (parsers, event handlers, etc).
-
-render method to always be last. The render method is a mandatory lifecycle method and it’s almost always the function I need to find first when I open a file. Consequently, it’s pragmatic to have it in a consistent location across all of my components.
 
 - Always set propTypes for validation and self-documentation
 
@@ -1072,3 +1189,122 @@ React.render(<Danger danger="<strong>HELLO</strong>" />, document.body);
 1. build components, not template
 Coupling is the degree to which each program module relies on each of the other modules.
 Cohesion is the degree to which elements of a module belong together.
+
+
+2. Events - The React way
+
+React has its own event abstraction: 1) Normalizes event behavior across browsers  2) uniform event system for DOM events and component events.  And then normalize the react events in "SyntheticEvents", works the same like native browsers events. Original event object is available via the "nativeEvent" property.
+
+- DOM events: Browser events, receive a "SyntheticEvent" object.
+
+ex: input tag is a react DOM element, has a "onChange" attribute, fire function callback every time when the input value has changed.
+
+Note: all react form DOM element supports "onChange" attribute
+
+```js
+var Echo = React.createClass({
+    handleChange: function(e) {
+        console.log(e.target.value);
+    },
+    render: function () {
+        return <input type="text" onChange={this.handleChange} />
+    }
+})
+```
+
+- Component Events
+
+Domain specific events, add a higher abstraction to the browser event. ex: like addTask, taskComplete, etc. It express the concept from your application over the raw browser events.
+
+```js
+var Timer = React.createClass({
+    propTypes: {
+        onInterval: React.PropTypes.func.isRequired,
+        interval: React.PropsTypes.number.isRequired
+    },
+    componentDidMount: function () {
+        setInterval(this.props.onInterval, this.props.interval);
+    },
+    render: function () {
+        return <div style={{display: 'none'}} />
+    }
+});
+function thingToDo () { console.log('tick') }
+React.render(<Timer onInterval={thingToDo} interval={1000} />, document.body );
+```
+
+- Touch Events
+
+Support for touch devices by calling
+
+`React.initializeTouchEvents(true)`
+
+Will add `onTouchStart`, `onTouchEnd`, `onTouchMove`, `onTouchCancel` attributes
+
+
+3. Forms
+
+- 1. Controlled components
+
+Form component rendered with its value or checked attribute provided as a prop.
+Props are immutable, if you provide the value, values is fixed and cannot be changed.
+React will gurentee the render version is always consistent with its props and states
+Since there is "value" attribute, it makes it an "Controlled components". So user cannot edit the input text box.
+
+Controller component preserve React's rendering semantics. rendered output will always match the component's props and states.
+
+- Changing controlled components
+
+**Change via state**. use `onChange` attribute, then populate the updated value from the ownering input text box state.
+
+```js
+getInitialState: function () {
+    return {init: 'init'}
+},
+handleChange: function (e) {
+    this.setState({init: e.target.value}):
+},
+render: function () {
+    return <input type="text" value={this.state.init} onChange={this.handleChange} />
+}
+```
+
+- 2. Uncontrolled components
+
+Form components render without a value or checked prop
+Since there is no "value" attribute, it makes it an "Uncontrolled components". So user can edit the input text box.
+
+```js
+render: function () {
+    // remove the value from input element
+    return <input type="text" onChange={this.handleChange} />
+}
+```
+
+It could cause the rendered DOM to diverge from React's model of the DOM. Or Uncontrolled components has a hidden state that React does not know about, outside of React control.
+
+- Uncontrolled component defaults
+
+Set an initial value with the `defaultValue` attribute. Give the init rendered view a default value.
+
+```js
+render: function () {
+    return <input type="text" defaultValue="init" />
+}
+```
+
+
+React.createClass – The way in which you create a new component.
+React.render – Renders a React component to a DOM node.
+
+#### Useful links
+
+[Flux react builder tutorial](https://scotch.io/tutorials/creating-a-simple-shopping-cart-with-react-js-and-flux#getting-started)
+[reapp](http://reapp.io/) An easier, faster way to build apps with React and JavaScript.
+[egghead](https://egghead.io/lessons/jsx-deep-dive) Good Tutorials
+[Tyler Mcginnis's react tutorials](http://tylermcginnis.com/tag/reactjs/)
+[Best tutorial collection](http://spyrestudios.com/the-only-react-js-tutorials-and-resources-youll-need/)
+
+[React.js Newsletter](http://reactjsnewsletter.com/)
+[React.js Docs](http://facebook.github.io/react/docs/)
+[Flux](http://facebook.github.io/flux/docs/)

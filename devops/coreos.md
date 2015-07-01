@@ -1,3 +1,31 @@
+```bash
+# Inside CoreOS, find current version of CoreOS
+cat /etc/os-release
+# nitiating update check and install.
+update_engine_client -check_for_update
+# show the strategy in the current setup
+cat /etc/coreos/update.conf
+# login on the coreos machines, manually update
+/usr/bin/update_engine_client -update
+# reboot the system
+sudo reboot
+
+# show machine id of this host
+cat /etc/machine-id
+
+sudo iptables-save
+```
+
+- Truth of CoreOS
+
+* Linux, systemd container runtime
+* Does not have package manager, may use Docker or Rocket for package manager. They are for running your app
+* automatically update. File system are read-only. Cannot install anything there. It allows for updating. Using the same Chrome browser update strategy via Omaha protocol. It allows atomic update.
+
+- CoreOS kubernetes
+
+Do the etcd on the kubernetes master or a different VM, so all nodes could access it for the data.
+
 # coreOS
 
 CoreOS uses Linux containers to manage your services at a higher level of abstraction. A single service's code and all dependencies are packaged within a container that can be run on one or many CoreOS machines.
@@ -180,6 +208,8 @@ journalctl -f -u hello.service
 ```
 
 ## etcd
+
+It stores configs for the cluster info. It backs Flannel for creating overlay network fabric.
 
 A discovery service, `https://discovery.etcd.io`, is provided as a free service to help connect etcd instances together by storing a list of peer addresses and metadata under a unique address, known as the discovery URL. You can generate them very easily:
 
@@ -617,3 +647,26 @@ curl -L http://127.0.0.1:7001/v2/admin/machines  # get a list of machines
 ```
 
 This can be used to remove machines forcefully from the cluster with the DELETE method.
+
+
+```bash
+# show the system info
+uname -r
+# To show the systemd init version
+init --version
+
+locksmithctl lock/unlock
+
+# testing the etcd working fine or not
+etcdctl set foo bar
+etcdctl rm foo
+
+# ctcd2 and etcd talk to the same API endpoint
+ls --lash /etc/machine-id
+# read the current machines id
+cat /etc/machine-id
+```
+
+Update useful guide
+
+https://coreos.com/docs/cluster-management/setup/update-strategies/

@@ -1,3 +1,23 @@
+## Get started
+
+```bash
+curl -L  https://github.com/coreos/etcd/releases/download/v2.1.0-alpha.0/etcd-v2.1.0-alpha.0-darwin-amd64.zip -o etcd-v2.1.0-alpha.0-darwin-amd64.zip
+unzip etcd-v2.1.0-alpha.0-darwin-amd64.zip
+cd etcd-v2.1.0-alpha.0-darwin-amd64
+./etcd
+
+# Open another terminal. Press enter to background etcd
+./etcdctl set mykey "this is awesome"
+./etcdctl get mykey
+
+# show the current version of etcd
+curl -L http://127.0.0.1:2379/version
+```
+
+By deafult, `./etcd` bring up IANA assigned ports and listening on localhost.
+etcd listening on port `2379` for client communication and on port `2380` for server-to-server communication.
+
+
 ## Configuring etcd
 
 etcd is an open source, distributed, consistent key-value store for shared configuration, service discovery, and scheduler coordination.
@@ -12,13 +32,13 @@ etcd supports client certificates as a way to provide secure communication betwe
 
 Individual node configuration options can be set in three places:
 
-Command line flags (highest precedence)
-Environment variables (high)
-Configuration file (low)
+    * Command line flags (highest precedence)
+    * Environment variables (high)
+    * Configuration file (low)
 
 - Cluster Configuration
 
-Cluster-wide settings are configured via the /config admin endpoint and additionally in the configuration file. Values contained in the configuration file will seed the cluster setting with the provided value. After the cluster is running, only the admin endpoint is used.
+Cluster-wide settings are configured via the `/config` admin endpoint and additionally in the configuration file. Values contained in the configuration file will seed the cluster setting with the provided value. After the cluster is running, only the admin endpoint is used.
 
 The full documentation is contained in the [API docs](https://github.com/coreos/etcd/blob/master/Documentation/api.md#cluster-config).
 
@@ -136,23 +156,23 @@ sync_interval = 5.0    # Environment Variables: ETCD_CLUSTER_SYNC_INTERVAL
 
 #### [etcd API](https://coreos.com/docs/distributed-configuration/etcd-api/)
 
+- Version
+
 ```bash
 # Getting the etcd version when you are in CoreOS machine
-curl -L http://127.0.0.1:4001/version
+curl -L http://127.0.0.1:2379/version
 ```
 
 - Key Space Operations
 
-The primary API of etcd is a hierarchical key space. The key space consists of directories and keys which are generically referred to as "nodes".
-
-etcd uses a file-system-like structure to represent the key-value pairs, therefore all keys start with /.
+The primary API of etcd is a hierarchical key space which consists of directories and keys which are generically referred to as "nodes". etcd uses a file-system-like structure to represent the key-value pairs, therefore all keys start with /.
 
 ```bash
-# Setting the value of a key
-curl -L http://127.0.0.1:4001/v2/keys/message -X PUT -d value="Hello world"
+# CREATE: Setting the value of a key
+curl -L http://127.0.0.1:2379/v2/keys/message -XPUT -d value="Hello world"
 
 {
-    "action": "set",   # the action of the request
+    "action": "set",   # the action of the request. Attempt to modify `node.value` via PUT
     "node": {
         "createdIndex": 2,  # an index is a unique, monotonically-incrementing integer created for each change to etcd. This specific index reflects the point in the etcd state machine at which a given key was created.
         "key": "/message",  # the HTTP path to which the request. ex: set /message to Hello world
@@ -163,11 +183,14 @@ curl -L http://127.0.0.1:4001/v2/keys/message -X PUT -d value="Hello world"
 ```
 
 ```bash
-# get the value of the key
-curl -L http://127.0.0.1:4001/v2/keys/message
+# READ: get the value of the key
+curl -L http://127.0.0.1:2379/v2/keys/message
 
-# Changing the value of a key
-curl -L http://127.0.0.1:4001/v2/keys/message -X PUT -d value="Hello etcd"
+# Delete: delete a key
+curl -L http://127.0.0.1:2379/v2/keys/message -X DELETE
+
+# MODIFY: Changing the value of a key
+curl -L http://127.0.0.1:2379/v2/keys/message -X PUT -d value="Hello etcd"
 
 {
     "action": "set",
@@ -177,42 +200,74 @@ curl -L http://127.0.0.1:4001/v2/keys/message -X PUT -d value="Hello etcd"
         "modifiedIndex": 3,
         "value": "Hello etcd"
     },
-    "prevNode": {  # represents what the state of a given node was before resolving the request. omitted in the event
+    # represents what the state of a given node was before resolving the request. and is omitted in the event that there was no previous state for a given node.
+    "prevNode": {
         "createdIndex": 2,
         "key": "/message",
         "value": "Hello world",
         "modifiedIndex": 2
     }
 }
-
-# Deleting a key
-curl -L http://127.0.0.1:4001/v2/keys/message -X DELETE
 ```
 
 - TTL (expire)
 
-Keys in etcd can be set to expire after a specified number of seconds. You can do this by setting a TTL (time to live) on the key when sending a PUT request:
+Keys in etcd can be set to expire after a specified number of seconds by setting a TTL (time to live) on the key when sending a PUT request. Keys can only be expired by a cluster leader, so if a member gets disconnected from the cluster, its keys will not expire until it rejoins.
 
 ```bash
-# The ttl is the specified time to live for the key, in seconds.
+# The ttl is the specified time to live for the key, in seconds. After 5 seconds, the key is being auto deleted
 curl -L http://127.0.0.1:4001/v2/keys/foo -XPUT -d value=bar -d ttl=5
 
 # TTL could be unset to avoid expiration through update operation
 curl -L http://127.0.0.1:4001/v2/keys/foo -XPUT -d value=bar -d ttl= -d prevExist=true
 ```
 
-NOTE: Keys can only be expired by a cluster leader, so if a machine gets disconnected from the cluster, its keys will not expire until it rejoins.
-
 - Waiting for a change
 
-We can watch for a change on a key and receive a notification by using long polling. This also works for child keys by passing recursive=true in curl.
+We can watch for a change on a key and receive a notification by using long polling. This also works for child keys by passing `recursive=true` in curl.
 
 ```bash
-curl -L http://127.0.0.1:4001/v2/keys/foo?wait=true  # will be notified
+# Terminal window 1, `?wait=true` passed and to be notified
+curl -L http://127.0.0.1:4001/v2/keys/foo?wait=true
+
+# Terminal window 2, when /foo key value updated, auto alert the Terminal window 1
 curl -L http://127.0.0.1:4001/v2/keys/foo -XPUT -d value=bar
 ```
 
+Note: etcd only keeps the responses of the most recent 1000 events across all etcd keys. It is recommended to send the response to another thread to process immediately instead of blocking the watch while processing the result.
+
+- Atomically Creating In-Order Keys
+
+Using `POST` on a directory, you can create keys with key names that are created in-order. Ex: implementing queues of keys which need to be processed in strict order. An example use case would be ensuring clients get fair access to a mutex.
+
+```bash
+# create a new directory called "queue"
+curl http://127.0.0.1:2379/v2/keys/queue -XPOST -d value=Job1
+curl http://127.0.0.1:2379/v2/keys/queue -XPOST -d value=Job2
+
+# To enumerate the in-order keys as a sorted list, use the "sorted" parameter.
+curl -s http://127.0.0.1:2379/v2/keys/queue?recursive=true&sorted=true
+```
+
+#### [etcd Cluster API](https://github.com/coreos/etcd/blob/master/Documentation/other_apis.md)
+
+```bash
+# list members
+curl http://localhost:2379/v2/members
+
+# Add a member to the cluster
+curl http://10.0.0.10:2379/v2/members -XPOST -H "Content-Type: application/json" -d {"peerURLs":["http://10.0.0.10:2380"]}
+
+# Delete a member from the cluster
+curl http://10.0.0.10:2379/v2/members/272e204152 -XDELETE
+
+# Change the peer urls of a member
+curl http://10.0.0.10:2379/v2/members/272e204152 -XPUT -H "Content-Type: application/json" -d {"peerURLs":["http://10.0.0.10:2380"]}
+```
+
 #### [Confd and Etcd to dynamically reconfigure services in CoreOS](https://www.digitalocean.com/community/tutorials/how-to-use-confd-and-etcd-to-dynamically-reconfigure-services-in-coreos)
+
+Confd is continuous pull config files from a central place, and then write them out into a disk. Then continue using this config data.
 
 one or multiple instances of a service need to register each instance with `etcd`, related services can obtain valuable information about the state of the infrastructure and use this knowledge to inform their own behavior. This makes it possible for services to dynamically configure themselves whenever significant etcd values change.
 
@@ -492,3 +547,23 @@ An improved Raft consensus implementation already used in other projects like Co
 More rigorous and faster running tests of the underlying Raft implementation, covering all state machine and cases explained in the original Raft white paper in 1.5 seconds
 Additional administrator focused documentation explaining common scenarios
 Official IANA assigned ports for etcd TCP 2379/2380
+
+
+Etcd is a configuration database. It stores your configuration file in a central place. It automatically fail over. Like real time configuration data, unlike ansible, chef, puppet, they use push-model, every 30s to pull configs. In etcd, when your app is up, your app could watch etcd to see any key changes. For example, 1000 servers use database, when password changes, write into etcd once, all other servers watch the key changes, and auto notify with the new password.
+
+Fleet/kubernetes use etcd to store job data, a leader election.
+flannel use etcd to store route table for the node is up in the network. Share configs with other nodes.
+
+etcd future will hold for history of those keys, hold for lots of data like the usage of kubernetes, add etcd security,
+
+```bash
+# etcd security - Users
+curl https://root:coreos@127.0.0.1:2379/v2/security/users
+# etcd security - Users
+curl https://root:coreos@127.0.0.1:2379/v2/security/roles
+# etcd keys globs pattern: select those path, recursive to get its access permission: directory or file
+/etcd
+/etcd/*
+/etcd/*/*
+/etcd/**
+```
