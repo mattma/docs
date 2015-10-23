@@ -1,60 +1,171 @@
 ## Tips
 
-1. Sync settings
+1. Sync settings: symlink your Dropbox directories backup the setting locally
+
+Note: ST3 has three other directories under **~/.config.sublime-text-3/** *Cache*, *Index* and *Local*.
+Do not sync these, each computer should manage their own local copies.
 
 ```bash
-    # Then symlink your Dropbox directories back locally
-    ln -s ~/Dropbox/sublime-text-3/Packages/
-    ln -s ~/Dropbox/sublime-text-3/Installed\ Packages/
-
-    # Note that ST3 has three other directories under ~/.config.sublime-text-3/:
-    # Cache, Index and Local. Do not sync these, each computer should manage their own local copies.
+ln -s ~/Dropbox/sublime-text-3/Packages/
+ln -s ~/Dropbox/sublime-text-3/Installed\ Packages/
 ```
 
-2. Pro tips
+## Keyboard Shortcut
 
-- cmd + p
+#### Navigation
 
-open any file or fuzzy search or quick open file
+- Files
 
-- cmd + r
+```bash
+# Open any file, Fuzzy search, Quick open file
+cmd + p
+```
 
-go to symbol. go to CSS selectors or Javascript functions
+```bash
+# [GotoRecent] package
+# Go to symbol, Go to CSS selectors, Go to Javascript functions
+cmd + r
+```
 
-- cmd + shift + r
+```bash
+# Open the most recent files
+cmd + shift + r
+```
 
-open the most recent files
+```bash
+# Jump back
+ctrl + -
+```
 
-- ctrl + left/right  or  opt + left/right
+```bash
+# Go back to the previous modified field
+cmd + opt + shift + k
+```
 
-move the cursor by one word
+```bash
+# [Git Gutter](https://github.com/jisaacks/GitGutter)
+# Jumping Between Changes
+cmd + opt + shift + k  # Previous
+cmd + opt + shift + j   # Next
+```
 
-- shift + left/right  or  shift + opt + left/right
+```bash
+# [tern](http://ternjs.net)
+# In JavaScript files, the package will handle autocompletion.
 
-move the cursor with the selection of one caret, plus opt with one word
+# Jump to the definition of the thing that the cursor is pointing at
+alt + .
 
-- cmd + click  or  cmd + opt + drag
+# Jump back to where you were when executing the previous `alt+.`
+alt + ,
 
-multiple carets or cursors
+# When on a variable, select all references to that variable in the current file.
+alt + space
+```
 
-- ctrl + shift + w
+- Cursors
 
-Wrap selection in tag. Combime with multiple cursors for multiple tag
+```bash
+# Move the cursor by one word
+ctrl|opt + left|right
+```
 
-- ctrl + w
+```bash
+# Move the cursor by one caret from current position
+shift + left|right
 
-open emmet wrap abbreviation for html, css. same above, but with emmet plugin
+# Move the cursor by one word from current position
+shift + opt + left|right
 
-- cmd + shift + v
+# Move the cursor to start or end of the line from current position
+shift + cmd + left|right
+```
 
-paste and indent, stop re-indenting after pastes. Detect indentation.
+```bash
+# delete one word
+ctrl + w
+```
 
-- cmd + shift + j
+```bash
+# Multiple carets or cursors
+cmd + opt + drag
 
-jshint to lint your code, via [plugins](https://sublime.wbond.net/packages/JSHint%20Gutter)
+# Multiple carets or cursors
+opt + drag
+```
 
+- Folding
 
-## Plugins
+```bash
+# Folding the selection
+cmd + opt + [
+
+# Unfolding the selection
+cmd + opt + ]
+
+# Unfolding everything in files
+cmd + opt + ctrl + ]
+```
+
+```bash
+# Fold level #NUMBER
+opt + ctrl + 1~9
+```
+
+- Utilities
+
+```bash
+# Detect indentation. paste and indent, stop re-indenting after pastes.
+cmd + shift + v
+```
+
+#### Languages
+
+- html
+
+```bash
+# Wrap selection in tag. Combime with multiple cursors for multiple tag
+ctrl + shift + w
+
+# Open emmet wrap abbreviation for html, css. [emmet plugin]
+ctrl + w
+```
+
+- javascript
+
+```bash
+# jshint or linting code in normal mode.
+# via [plugins](https://sublime.wbond.net/packages/JSHint%20Gutter)
+cmd + shift + j
+```
+
+## Packages
+
+#### [DashDoc](https://github.com/farcaller/DashDoc)
+
+```bash
+# search on Dash documentation on selection
+ctrl + h
+
+# flip syntax sensitive. Search MDN network
+ctrl + opt + h
+```
+
+#### [Glue](http://gluedocs.readthedocs.org/en/latest/)
+
+```bash
+# Launch terminal `terminal.glue` for terminal bash script
+ctrl + opt + g
+
+# Open files in the Sublime Text editor by file path
+glue open <filepath> [filepath2] [...]
+
+# Open files by wildcard pattern
+glue wco <wildcard>
+
+# create new files
+glue new
+```
 
 1. [DocBlockr](https://github.com/spadgos/sublime-jsdocs)
 
@@ -87,13 +198,6 @@ write a double-slash comment and then press Ctrl+Enter, DocBlockr will 'decorate
 - Reformatting paragraphs
 
 Inside a comment block, hit `Alt+Q` to wrap the lines to make them fit within your rulers
-
-2. [Git Gutter](https://github.com/jisaacks/GitGutter)
-
-Jumping Between Changes
-
-Prev:  cmd + opt + shift + k
-Next: cmd +opt + shift + j
 
 3. Emmet
 
@@ -146,3 +250,10 @@ General keymap to create new files.
 In addition to creating the folders specified, new folders will also contain an __init__.py file.
 
 7. [TabsExtra](https://github.com/facelessuser/TabsExtra)
+
+#### VIM
+
+```bash
+# Select the whole line [Vintageous](https://github.com/guillermooo/Vintageous)
+shift + v
+```
