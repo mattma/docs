@@ -28,13 +28,17 @@ Once you have done the troubleshooting above, you should have `Go-Vim`.
 3. YouCompleteMe
 
 ```bash
-git clone https://github.com/Valloric/YouCompleteM
+git clone https://github.com/Valloric/YouCompleteMe
 
 git submodule update --init --recursive
 
 brew update
 brew install cmake
 brew install python3
+
+cd ~
+mkdir ycm_build
+cd ycm_build
 
 # If python3 is installed correctly, you should be able to see
 python3-config --include
