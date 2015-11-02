@@ -2,13 +2,6 @@
 
 To setup [Go IDE in Sublime](http://eefret.me/making-sublime-your-golang-ide/)http://www.wolfe.id.au/2015/03/05/using-sublime-text-for-go-development/
 
-## Resource
-
-1. [Effective Go](https://golang.org/doc/effective_go.html)
-2. [Resources for new Go programmers](http://dave.cheney.net/resources-for-new-go-programmers)
-3. [GoBooks](https://github.com/dariubs/GoBooks)
-4. [Go Language Spec](http://golang.org/ref/spec)
-
 ## GO
 
 To update a package from your $GOPATH, do this:
@@ -634,6 +627,3 @@ If we create a method on a name type, we cannot modify the name type. But we cre
 
 Ex:
 `func(*myType) myMethod(i int)`
-
-## Interface
-
