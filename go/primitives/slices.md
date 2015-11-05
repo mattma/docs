@@ -1,3 +1,223 @@
+Slices are built around the concept of dynamic arrays that can grow and shrink as
+we see fit.
+
+They’re flexible in terms of growth because they have their own built-in
+function called append, which can grow a slice quickly with efficiency. We can also
+reduce the size of a slice by slicing out a part of the underlying memory. Slices give us
+all the benefits of indexing, iteration, and garbage collection optimizations because the
+underlying memory is allocated in contiguous blocks.
+
+Regardless whether we’re using a slice or an empty slice, the nil built-in functions
+append, len and cap work the same.
+
+One way to create a slice is to use the built-in function make. When we use make, one
+option we have is to specify the length of the slice:
+
+```go
+// Create a slice of strings.
+// Contains a length and capacity of 5 elements.
+// just specify the length, the capacity of the slice is the same.
+slice := make([]string, 5)
+
+
+// Create a slice of integers.
+// Contains a length of 3 and has a capacity of 5 elements.
+// create a slice with available capacity in the underlying array that we don’t have access to initially.
+slice := make([]int, 3, 5)
+
+
+// slice literal.
+// Like creating an array, except we don’t specify a value inside of the operator.
+// Create a slice of strings.
+// Contains a length and capacity of 5 elements.
+slice := []string{"Red", "Blue", "Green", "Yellow", "Pink"}
+// Create a slice of integers.
+// Contains a length and capacity of 3 elements.
+slice := []int{10, 20, 30}
+
+
+// Declare a slice with index position
+// Create a slice of strings
+// Initialize the 100th element with an empty string.
+slice := []string{99: ""}
+```
+
+- nil and empty slices
+
+Sometimes in our programs we may need to declare a nil slice. A nil slice is created
+by declaring a slice without any initialization:
+empty slice is length of zero and capacity of zero
+
+```go
+// Create a nil slice of integers.
+var slice []int
+
+// Use make to create an empty slice of integers.
+slice := make([]int, 0)
+
+// Use a slice literal to create an empty slice of integers.
+slice := []int{}
+```
+
+Empty slices contain a zero-element underlying array that allocates no storage. Empty
+slices are useful when we want to represent an empty collection, such as when a database
+query returns zero results
+
+
+- Taking the slice of a slice
+
+```go
+// Create a slice of integers.
+// Contains a length and capacity of 5 elements.
+slice := []int{10, 20, 30, 40, 50}
+// Create a new slice.
+// Contains a length of 2 and capacity of 4 elements.
+newSlice := slice[1:3]
+```
+
+we have two slices that are
+sharing the same underlying array. However, each slice views the underlying array in a
+different way.
+
+The original slice views the underlying array as having a capacity of five elements,
+but the view of newSlice is different. For newSlice, the underlying array has a
+capacity of four elements. newSlice can’t access the elements of the underlying array
+that are prior to its pointer. As far as newSlice is concerned, those elements don’t even
+exist.
+
+
+We need to remember that we now have two slices sharing the same underlying array.
+Making changes to the shared section of the underlying array by one slice can be seen by
+the other slice:
+
+```go
+// Create a slice of integers.
+// Contains a length and capacity of 5 elements.
+slice := []int{10, 20, 30, 40, 50}
+// Create a new slice.
+// Contains a length of 2 and capacity of 4 elements.
+newSlice := slice[1:3]
+// Change index 1 of newSlice.
+// Change index 2 of the original slice.
+newSlice[1] = 35
+```
+
+
+- how the new length and capacity is being calcualated
+
+For slice[i:j] with an underlying array of capacity k
+Length: j - i
+Capacity: k - i
+
+Another way to look at this, the first value represents the starting index position of the
+element the new slice will start with. In this case that is (1). The second value represents
+the starting index position (1) plus the number of elements we want to include (2). One
+plus two is three so the second value is (3). Capacity will be the total number of elements
+associated with the slice.
+
+
+A slice can only access indexes up to its length. Trying to access an element outside
+of its length will cause a runtime exception. The elements associated with a slice’s
+capacity are only available for growth. They must be incorporated into the slices length
+before they can be used
+
+
+- append
+
+To use append, we need a source slice and a value that is to be appended. When our
+append call returns, it provides us a new slice with the changes. The append function
+will always increase the length of the new slice. The capacity on the other hand, may or
+may not be affected depending on the available capacity of the source slice.
+
+
+When there is no available capacity in the underlying array for a slice, the append
+function will create a new underlying array, copy the existing values that are being referenced and assign the new value
+
+The append operation is clever when growing the capacity of the underlying array.
+Capacity is always doubled when the existing capacity of the slice is under 1,000
+elements. Once the number of elements goes over 1,000, the capacity is grown by a
+factor of 1.25 or 25%. This growth algorithm may change in the language over time.
+
+
+- third index slice
+
+This third index gives us control over the capacity of the new slice. The purpose
+is not to increase capacity, but to restrict the capacity.
+
+```go
+// Slice the third element and restrict the capacity.
+// Contains a length of 1 element and capacity of 2 elements.
+slice := source[2:3:4]
+```
+
+After this slicing operation, we have a new slice that references one element from the
+underlying array and has a capacity of two elements.
+
+If we attempt to set a capacity that is larger than the available capacity, we will get a
+runtime error
+
+How length and capacity are calcuated:
+
+For slice[i:j:k] or [2:3:4]
+Length: j - i or 3 - 2 = 1
+Capacity: k - i or 4 - 2 = 2
+
+
+- Benefits of setting length and capacity to be the same
+
+As we’ve discussed and seen, the built-in function will append use any available
+capacity first. Once that capacity is reached, it will allocate a new underlying array. It’s
+easy to forget which slices are sharing the same underlying array.
+
+By having the option to set the capacity of a new slice to be the same as the length,
+we can force the first append operation to detach the new slice from the underlying
+array. Detaching the new slice from its original source array makes it safe to change.
+
+
+```go
+// Create a slice of strings.
+// Contains a length and capacity of 5 elements.
+source := []string{"Apple", "Orange", "Plum", "Banana", "Grape"}
+// Slice the third element and restrict the capacity.
+// Contains a length and capacity of 1 element.
+slice := source[2:3:3]
+// Append a new string to the slice.
+slice = append(slice, "Kiwi")
+```
+Without this third index, appending Kiwi to our slice would’ve changed the value of
+Banana in index 3 of the underlying array, because all of the remaining capacity would
+still belong to the slice. But in listing 4.36, we restricted the capacity of the slice to one.
+When we call append for the first time on our slice, it will create a new underlying
+array of two elements, copy the fruit Plum, add the new fruit Kiwi, and return a new slice
+that references this underlying array
+
+With the new slice now having its own underlying array, we have avoided potential
+problems. We can now continue to append fruit to our new slice without worrying if
+we’re changing fruit to other slices inappropriately. Also, allocating the new underlying
+array for the slice was easy and clean.
+
+
+-
+
+The built-in function is also a variadic function. This append means we can pass
+multiple values to be appended in a single slice call. If we use the ... operator, we can
+append all the elements of one slice into another:
+
+```go
+// Create two slices each initialized with two integers.
+s1 := []int{1, 2}
+s2 := []int{3, 4}
+// Append the two slices together and display the results.
+fmt.Printf("%v\n", append(s1, s2...))
+Output: [1 2 3 4]
+```
+
+
+
+
+
+
+
 
 A slice is . `var x []float64` The only difference between this and an array is the
 missing length between the brackets. In this case x

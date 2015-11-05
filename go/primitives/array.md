@@ -1,5 +1,101 @@
+When variables in Go are declared, they’re always initialized to their zero value
 
 #### Arrays
+
+An array in Go is a fixed-length data type that contains a contiguous block of elements of the same type. This could be a built-in type such as integers and strings, or it can be a
+struct type. Arrays are valuable data structures because the memory is allocated sequentially.
+Having memory in a contiguous form can help to keep the memory we use stay loaded
+within CPU caches longer.
+
+Once an array is declared, neither the type of data being stored nor its length can be
+changed. If we need more elements, we need to create a new array with the length needed
+and then copy the values from one array to the other.
+
+```go
+// Declare an integer array of five elements.
+var array [5]int
+
+// Declare an integer array of five elements.
+// Initialize each element with a specific value.
+array := [5]int{10, 20, 30, 40, 50}
+
+// Declare an integer array.
+// Initialize each element with a specific value.
+// Capacity is determined based on the number of values initialized.
+array := [...]int{10, 20, 30, 40, 50}
+
+// Declare an integer array of five elements.
+// Initialize index 1 and 2 with specific values.
+// The rest of the elements contain their zero value.
+array := [5]int{1: 10, 2: 20}
+
+
+// Declare an integer pointer array of five elements.
+// Initialize index 0 and 1 of the array with integer pointers.
+array := [5]*int{0: new(int), 1: new(int)}
+// Assign values to index 0 and 1.
+*array[0] = 10
+*array[1] = 20
+
+
+/* Multi demensional array*/
+// Declare a two dimensional integer array of four elements
+// by two elements.
+var array [4][2]int
+// Use an array literal to declare and initialize a two
+// dimensional integer array.
+array := [4][2]int{{10, 11}, {20, 21}, {30, 31}, {40, 41}}
+// Declare and initialize index 1 and 3 of the outer array.
+array := [4][2]int{1: {20, 21}, 3: {40, 41}}
+// Declare and initialize individual elements of the outer
+// and inner array.
+array := [4][2]int{1: {0: 20}, 3: {1: 41}}
+```
+
+
+- Pass array between functions
+
+Passing an array between functions can be an expensive operation in terms of memory
+and performance.
+
+When we pass variables between functions, they’re always passed by
+value. When our variable is an array, this means the entire array, regardless of its size, is
+copied and passed to the function.
+
+If not pass `foo2(&array)`, use `foo1(array)`, Every time the function foo1 is called, eight megabytes of memory has to be allocated
+on the stack.
+
+By pass `foo2(&array)`, We can pass a pointer to the array and only copy eight
+bytes, instead of eight megabytes of memory on the stack
+This time the function foo takes a pointer to an array of one million elements of type
+integer. The function call now passes the address of the array, which only requires eight
+bytes of memory to be allocated on the stack for the pointer variable.
+
+We just need to be aware that because we’re now using a pointer, changing
+the value that the pointer points to will change the memory being shared. What is really
+awesome is that slices inherently take care of dealing with these types of issues for us, as
+we will see.
+
+```go
+// Allocate an array of 8 megabytes.
+var array [1e6]int
+
+// Pass the array to the function foo.
+foo1(array)
+// Function foo accepts an array of one million integers.
+func foo1(array [1e6]int) {
+
+}
+
+// Pass the address of the array to the function foo.
+foo2(&array)
+// Function foo accepts a pointer to an array of one million integers.
+func foo2(array *[1e6]int) {
+}
+```
+
+
+
 
 The type `[n]T` is an array of `n` values of type `T`.  ex: `var a [10]int`
 
