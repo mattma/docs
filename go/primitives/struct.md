@@ -107,3 +107,64 @@ func main() {
     job.Logger.Print("test") // Job: 2009/11/10 test
 }
 ```
+
+An empty struct allocates zero bytes when values of this type are created. They’re
+great when you need a type but not any state
+Syntax: `type defaultMatcher struct{}`
+
+
+The use of a receiver with any function declaration declares a method that is bound to
+the specified receiver type.
+`func (m defaultMatcher) Search`
+
+It’s best practice to declare methods using pointer receivers, since many of the
+methods we implement need to manipulate the state of the value being used to make the
+method call. Using a pointer makes no sense since there is no state to be manipulated.
+
+Unlike when we call methods directly from values and pointers, when we’re calling a
+method via an interface type value, the rules are different. Methods declared with pointer
+receivers can only be called by interface type values that contain pointers. Methods
+declared with value receivers can be called by interface type values that contain both
+values and pointers.
+
+Example of method calls:
+
+```go
+// Way 1
+// Method declared with a value receiver of type defaultMatcher
+func (m defaultMatcher) Search(feed *Feed, searchTerm string)
+// Declare a pointer of type defaultMatch
+dm := new(defaultMatch)
+// The compiler will dereference the dm pointer to make the call
+dm.Search(feed, "test")
+
+// Way 2
+// Method declared with a pointer receiver of type defaultMatcher
+func (m *defaultMatcher) Search(feed *Feed, searchTerm string)
+// Declare a value of type defaultMatch
+var dm defaultMatch
+// The compiler will reference the dm value to make the call
+dm.Search(feed, "test")
+```
+
+example of interface method call restrictions
+
+```go
+// Method declared with a pointer receiver of type defaultMatcher
+func (m *defaultMatcher) Search(feed *Feed, searchTerm string)
+// Call the method via an interface type value
+var dm defaultMatcher
+var matcher Matcher = dm // Assign value to interface type
+matcher.Search(feed, "test") // Call interface method with value
+> go build
+cannot use dm (type defaultMatcher) as type Matcher in assignment
+
+// Method declared with a value receiver of type defaultMatcher
+func (m defaultMatcher) Search(feed *Feed, searchTerm string)
+// Call the method via an interface type value
+var dm defaultMatcher
+var matcher Matcher = &dm // Assign pointer to interface type
+matcher.Search(feed, "test") // Call interface method with pointer
+> go build
+Build Successful
+```

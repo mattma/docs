@@ -1,5 +1,5 @@
 
-
+Pointers are a way of sharing data across functions and goroutines.
 
 Pointers reference a location in memory where a value
 is stored rather than the value itself.

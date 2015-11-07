@@ -1,6 +1,12 @@
 
 ## Interface
 
+There is a naming convention in Go we follow when naming interfaces. If the
+interface type contains only one method, the name of the interface ends with the er
+suffix. This is the exact case for our interface, so the name of the interface is Matcher.
+When multiple methods are declared within an interface type, the name of the interface
+should relate to its general behavior.
+
 An interface type is defined by a set of methods.
 A value of interface type can hold any value that implements those methods.
 

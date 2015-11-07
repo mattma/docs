@@ -1,6 +1,11 @@
 
 #### Loop
 
+The keyword range can be used with arrays, strings, slices,
+maps, and channels. When we use for range to iterate over a slice, we get two values
+back on each iteration. The first is the index position of the element we’re iterating ,over
+and the second is a copy of the value in that element.
+
 ```go
 // basic loop
 sum := 0

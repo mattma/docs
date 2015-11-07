@@ -227,6 +227,10 @@ ex: ?[pP]rint  Search backward for either "print" or "Print"
 - :g/Local/s//Remote/g  Substitute every occurence of the word "Local" with the word "Remote" in the entire file
 - :g/Local/s//Remote/gp   Substitute every occurence of the word "Local" with the word "Remote" in the entire file, then prints each line so you can see the changes.
 
+- :noh
+
+Remove the searched highlight word
+
 
 - .
 
