@@ -212,9 +212,119 @@ fmt.Printf("%v\n", append(s1, s2...))
 Output: [1 2 3 4]
 ```
 
+There are two special built-in functions called len and cap that work with arrays,
+slices and channels. For slices, the len function returns the length of the slice and the
+cap function returns the capacity.
+
+- multi-demensional slice
+
+```go
+// Create a slice of a slice of integers.
+slice := [][]int{{10}, {100, 200}}
+```
+
+- passing slice between functions
+
+Passing a slice between two functions requires nothing more than passing the slice by
+value. Since the size of a slice is small, it’s cheap to copy and pass between functions.
+
+On a 64-bit architecture, a slice requires 24 bytes of memory. The pointer field
+requires 8 bytes and the length and capacity fields require 8 bytes respectively. Since the
+data associated with a slice is contained in the underlying array, there are no problems
+passing a copy of a slice to any function. Only the slice is being copied, not the
+underlying array.
+
+Passing the 24 bytes between functions is fast and easy. This is the beauty of slices.
+We don’t need to pass pointers around and deal with complicated syntax. We just create
+copies of our slices, make the changes we need, and then pass a new copy back.
 
 
 
+### map
+
+We store values into the map based on a key. maps are unordered collections and there is no way for us to predict the order the
+key/value pairs will be returned.
+
+- Creating and initializing
+
+```go
+// Create a map with a key of type string and a value of type int.
+dict := make(map[string]int)
+// Create a map with a key and value of type string.
+// Initialize the map with 2 key/value pairs.
+dict := map[string]string{"Red": "#da1337", "Orange": "#e95a22"}
+```
+
+- We can create a map by declaring a map without any initialization. nil A nil map
+can't be used to store key/value pairs. Trying will produce a runtime error:
+
+```go
+// Create a nil map by just declaring the map.
+var colors map[string]string
+// Add the Red color code to the map.
+colors["Red"] = "#da1337"
+Runtime Error:
+panic: runtime error: assignment to entry in nil map
+```
+
+- Retrieving a value from a map and testing existence.
+
+```go
+// Retrieve the value for the key "Blue".
+value, exists := colors["Blue"]
+// Did this key exist?
+if exists {
+fmt.Println(value)
+}
+```
+
+the other option is to just return the value and test for the zero value to determine if the
+key exists. This will only work if the zero value is not a valid value for the map
+
+```go
+// Retrieve the value for the key "Blue".
+value := colors["Blue"]
+// Did this key exist?
+if value != "" {
+fmt.Println(value)
+}
+```
+
+- If we want to remove a key/value pair from the map, we use the built-in function
+delete:
+
+```go
+// Remove the key/value pair for the key "Coral".
+delete(colors, "Coral")
+```
+
+- Passing maps between functions
+
+Passing a map between two functions doesn’t make a copy of the map. In fact, we can
+pass a map to a function, make changes to the map, and the changes will be reflected by
+all references to the map:
+
+Maps are designed to be cheap, similar to
+slices.
+
+
+## Summany
+
+Arrays are the building blocks for both slices and maps.
+Slices are the idiomatic way in Go we work with collections of data. Maps are the way
+we work with key/value pairs of data.
+The built-in function make allows us to create slices and maps with initial length and
+capacity. Slice and map literals can be used as well and support setting initial values for
+use.
+Slices have a capacity restriction but can be extended using the built-in function append.
+Maps don’t have a capacity or any restriction on growth.
+The built-in function len can be used to retrieve the length of a slice and map.
+The built-in function cap only works on slices.
+Through the use of composition, we can create multidimensional arrays and slices. We
+can also create maps with values that are slices and other maps. A slice can’t be used as a
+map key.
+Passing a slice or map to a function is cheap and doesn’t make a copy of the underlying
+data structure.
 
 
 
