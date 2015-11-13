@@ -145,7 +145,34 @@ reference type value. This also applies to return values. In the end, reference 
 are treated like primitive data values.
 
 
-*
+* struct types
+
+Struct types can represent data values that could have either a primitive or nonprimitive
+nature. When the decision is made that a struct type value should not be mutated
+when something needs to be added or removed from the value, then it should follow
+the guidelines for the built-in and reference types.
+
+In most cases, struct types don’t exhibit a primitive nature, but a nonprimitive one.
+In these cases, adding or removing something from the value of the type should
+mutate the value. When this is the case, you want to use a pointer to share the value
+with the rest of the program that needs it.
+
+When a factory function returns a pointer,
+it’s a good indication that the nature of the value being returned is nonprimitive. Even if a function or method is never going to directly change the state of a
+nonprimitive value, it should still be shared. a pointer receiver is declared even
+though no changes are made to the receiver value. Since values of type `File`(example) have a
+nonprimitive nature, they’re always shared and never copied.
+
+The decision to use a value or pointer receiver should not be based on whether the
+method is mutating the receiving value. The decision should be based on the nature
+of the type.
+
+One exception to this guideline is when you need the flexibility that value
+type receivers provide when working with interface values. In these cases, you may
+choose to use a value receiver even though the nature of the type is nonprimitive. It’s
+entirely based on the mechanics behind how interface values call methods for the values
+stored inside of them.
+
 
 
 

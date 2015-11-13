@@ -1,3 +1,66 @@
+When you’re writing code that will live in its own package, it’s good practice to name the package the same as the folder the code is in.
+All the Go tooling expects this convention, so it’s a good practice to follow.
+
+
+When an identifier starts with a lowercase letter, the identifier is unexported or
+unknown to code outside the package. When an identifier starts with an uppercase letter,
+it’s exported or known to code outside the package.
+
+First, identifiers are exported or unexported, not
+values. Second, the short variable declaration operator is capable of inferring the type
+and creating a variable of the unexported type. You can never explicitly create a variable
+of an unexported type, but the short variable declaration operator can.
+
+```go
+// entities/entities.go
+// -----------------------------------------------------------------------
+// Package entities contains support for types of
+// people in the system.
+package entities
+// an unexported struct type named user is declared.
+// It contains two exported fields named Name and Email.
+type user struct {
+Name string
+Email string
+}
+// an exported struct type named Admin is declared
+type Admin struct {
+user // The embedded type is unexported.
+Rights int
+}
+
+// listing74.go
+// -----------------------------------------------------------------------
+// Sample program to show how unexported fields from an exported
+// struct type can't be accessed directly.
+package main
+import (
+"fmt"
+"github.com/goinaction/code/chapter5/listing74/entities"
+)
+// main is the entry point for the application.
+func main() {
+    //Since the user inner type is unexported, this code can’t
+// access the inner type to initialize it inside the struct literal.
+// Even though the inner type
+// is unexported, the fields declared within the inner type are exported. Since the identifiers
+// from the inner type are promoted to the outer type, those exported fields are
+// known through a value of the outer type.
+// Create a value of type Admin from the entities package.
+a := entities.Admin{
+Rights: 10,
+}
+
+// the Name and Email fields from the unexported inner
+// type can be accessed and initialized through the outer type variable a. There’s no
+// access to the inner type directly, since the user type is unexported.
+// Set the exported fields from the unexported // inner type.
+a.Name = "Bill"
+a.Email = "bill@email.com"
+fmt.Printf("User: %v\n", a)
+}
+```
+
 ## Introduction
 
 - Why use Go, not C?

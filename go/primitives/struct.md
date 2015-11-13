@@ -1,3 +1,8 @@
+User-defined types can be declared using the keyword struct or by specifying
+an existing type.
+Methods provide a way to add behavior to user-defined types.
+Think of types as having one of two natures, primitive or non-primitive.
+
 #### Struct
 
 A struct is a collection of fields/properties. Can define new types as structs or interfaces. Like OOP, a light class that supports composition but not inheritance. No getter/setter, they can be accessd automatically. Only exported field (Capitalized) can be accessed from outside of a package.
