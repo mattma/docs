@@ -38,13 +38,8 @@ ctrl + -
 ```
 
 ```bash
-# Go back to the previous modified field
-cmd + opt + shift + k
-```
-
-```bash
 # [Git Gutter](https://github.com/jisaacks/GitGutter)
-# Jumping Between Changes
+# Jumping Between Changes, modified field
 cmd + opt + shift + k  # Previous
 cmd + opt + shift + j   # Next
 ```
@@ -92,6 +87,13 @@ cmd + opt + drag
 
 # Multiple carets or cursors
 opt + drag
+```
+
+- file
+
+```bash
+# Advanced New file:create a new file
+ctrl + alt + n
 ```
 
 - Folding
@@ -221,7 +223,7 @@ Need to fully test it. this package is in top 100
 
 - ctrl + a, ctrl + up/down/right/left
 
-create a new pane in direction
+create_pane_with_file the file into the pane in that direction
 
 - ctrl + a, up/down/right/left
 
@@ -229,7 +231,7 @@ travel to the pane in direction
 
 - ctrl + a, cmd + up/down/right/left
 
-create_pane_with_file the file into the pane in that direction
+create a new pane in direction
 
 - ctrl + a, opt + up/down/right/left
 
@@ -256,4 +258,60 @@ In addition to creating the folders specified, new folders will also contain an 
 ```bash
 # Select the whole line [Vintageous](https://github.com/guillermooo/Vintageous)
 shift + v
+```
+
+#### Go development
+
+```bash
+# go to definition
+ctrl + a, ctrl + g
+```
+
+```bash
+# show documentation
+ctrl + a, ctrl + h
+```
+
+```bash
+# show errors on the current page
+ctrl + a, ctrl + e
+```
+
+```bash
+# Run `gofmt` format the file without saving it
+ctrl + a, ctrl + f
+```
+
+- Commands
+
+```bash
+# modify the environment variable GOPATH and PATH
+vi ~/Dropbox/Sublime_Text_3/Packages/User/golang.sublime-settings
+```
+
+```bash
+# go build -v
+ctrl + a, ctrl + b
+
+# go run -v
+ctrl + a, ctrl + r
+
+# go test -v
+ctrl + a, ctrl + t
+
+# go install -v
+ctrl + a, ctrl + i
+
+# go clean -v
+ctrl + a, ctrl + c
+
+# Cancel a build
+ctrl + a, ctrl + x
+```
+
+```bash
+super + shift + p
+
+`Go: Get`:  executes go get after prompting for a URL
+`Go: Open Terminal`, which opens a terminal and sets relevant Go environment variables
 ```
