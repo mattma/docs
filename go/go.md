@@ -1,6 +1,6 @@
 # Go
 
-To setup [Go IDE in Sublime](http://eefret.me/making-sublime-your-golang-ide/)http://www.wolfe.id.au/2015/03/05/using-sublime-text-for-go-development/
+
 
 ## GO
 

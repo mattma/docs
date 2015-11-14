@@ -4,6 +4,9 @@
 
 2. [GoBooks](https://github.com/dariubs/GoBooks)
 
+## Videos
+
+1. [Gopher Vids](http://gophervids.appspot.com/)
 
 ## Golang official
 

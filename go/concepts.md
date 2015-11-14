@@ -63,123 +63,121 @@ fmt.Printf("User: %v\n", a)
 
 ## Introduction
 
-- Why use Go, not C?
+#### Why use Go, not C?
 
 C is inherently a serial language. Various libraries, such as POSIX threads and OpenMP, make it possible to write multithreaded code in C, but it’s very hard to write code that scales well. Writing C code that scales to two, or even eight cores is quite difficult but not insanely hard. Writing C code that scales to 64 or 256 cores is very challenging.
 
-Goroutines are functions that run concurrently with other goroutines, including the entry
-point of our program. In other languages, we’d use threads to accomplish the same thing,
-but in Go many goroutines execute on a single thread. For example, if we write a web
-server and we want to handle different web requests simultaneously, we’d have to write a
-lot of extra code to use threads in C or Java. In Go, the net/http library has
-concurrency built in using goroutines. Each inbound request automatically runs on its
-own goroutine. Goroutines use less memory than threads and the Go runtime will
-automatically schedule the execution of goroutines against a set of configured logical
-processors. Each logical processor is bound to a single OS thread. This makes our
-application much more efficient with significantly less development effort.
-
 Go was designed with concurrency in mind, does lots of things in parallel. It provides a number of mid-level abstractions, which provide high-level access to low-level features. Go compiler and runtime environment can easily run on a single core by simply timeslicing between the various parts, or many core machine by distributing the tasks across different threads. Go combines the best of both worlds (erlang and C). In single threaded performance, it is close to C, yet it encourages a programming style that scales well to large numbers of cores.
 
-Because of Go’s built-in concurrency features, our software will scale to use the resources available without forcing us to use special threading libraries. Go uses a simple and effective type system that takes much of the overhead out of object-oriented development and lets us focus on code reuse. Go also has a garbage collector, so we don’t have to manage our own memory.
+Go’s built-in concurrency features, our software will scale to use the resources available without forcing us to use special threading libraries.
 
-Go’s concurrency support is one of its strongest features. Goroutines are like threads,
-but use far less memory and require much less code to use. Channels are data structures
-that let us send typed messages between goroutines with synchronization built in. This
-facilitates a programming model where we send data between goroutines, rather than
-letting the goroutines fight to use the same data.
+Go uses a simple and effective type system that takes much of the overhead out of object-oriented development and lets us focus on code reuse.
 
-Concurrency and synchronization is accomplished by launching goroutines and using
-channels.
+Go has a garbage collector, so we don’t have to manage our own memory.
 
-- Concurrency, GoRoutine, CSP
 
-**CSP communicating sequential processes**
+#### CSP, Concurrency, GoRoutine
+
+**CSP**
 
 Hoare’s Communicating Sequential Processes (CSP) is for describing the foudamental concepts of concurrency. In CSP, a program is a parrellel composition of processes that have no shared state, the process communicate and synchronize using channels. It formalism to facilitate communication between goroutines. CSP defines communication channels that events can be sent down.
 
 **GoRoutine**
 
-A goroutine is a like function call that completes asynchronously. Conceptually, it runs in parallel, but the language does not define how this actually works in terms of real parallelism. A Go compiler may spawn a new operating system thread for every goroutine, or it may use a single thread and use timer signals to switch between them.
+Goroutines are functions that run concurrently with other goroutines, including the entry point of our program. In other languages, we’d use threads to accomplish the same thing, but in Go many goroutines execute on a single thread. Goroutines use less memory than threads and the Go runtime will automatically schedule the execution of goroutines against a set of configured logical processors. Each logical processor is bound to a single OS thread. This makes our application much more efficient with significantly less development effort.
 
-Creating a goroutine is intended to be much cheaper than creating a thread using a typical C threading library. The main reason is to use of segmented stacks in Go implementations. They treat the stack as a linked list of memory allocations. If there is enough space in the current stack page for their use, then they work like C functions; otherwise they will request that the stack grows. A short-lived goroutine will not use more than the 4KB initial stack allocation, so you can create a lot of them without exhausting your
-address space, even on a 32-bit platform.
+A goroutine is a like function call that completes asynchronously. Goroutines are not intended to be implemented as kernel threads. Conceptually, it runs in parallel, but the language does not define how this actually works in terms of real parallelism. A Go compiler may spawn a new operating system thread for every goroutine, or it may use a single thread and use timer signals to switch between them. Like Java threads or Erlang processes, a large number of goroutines can be multiplexed onto a small number of kernel threads. This means that context switches between goroutines is often cheaper than between POSIX threads.
 
-Goroutines are not intended to be implemented as kernel threads. The language does not make hard guarantees on their concurrency. Like Java threads or Erlang processes, a large number of goroutines can be multiplexed onto a small number of kernel threads. This means that context switches between goroutines is often cheaper than between POSIX threads.
+Creating a goroutine is intended to be much cheaper than creating a thread using a typical C threading library. The main reason is to use of segmented stacks in Go implementations. They treat the stack as a linked list of memory allocations. If there is enough space in the current stack page for their use, then they work like C functions; otherwise they will request that the stack grows. A short-lived goroutine will not use more than the 4KB initial stack allocation, so you can create a lot of them without exhausting your address space, even on a 32-bit platform.
+
+Concurrency and synchronization is accomplished by launching goroutines and using channels.
 
 **Channels**
 
-Channels are data structures that enable safe data communication between goroutines.
-
-The hardest part of concurrency is ensuring that our data isn’t unexpectedly modified
-by concurrently running processes, threads, or goroutines. Channels help to enforce the pattern that only one goroutine
-should modify the data at any time.
+Channels are data structures that let us send typed messages between goroutines with synchronization built in. Channels are data structures that enable safe data communication between goroutines. This facilitates a programming model where we send data between goroutines, rather than letting the goroutines fight to use the same data. The hardest part of concurrency is ensuring that our data isn’t unexpectedly modified by concurrently running processes, threads, or goroutines. Channels help to enforce the pattern that only one goroutine should modify the data at any time.
 
 ```bash
 Goroutines
-     ||
-     =>  Channel (data)  => Goroutines
-                                               ||
-                                               =>  Channel (data)  => Goroutines
+  ||
+  =>  Channel (send data)  => Goroutines
+                              ||
+                              =>  Channel (send data)  => Goroutines
 ```
 
-In figure 1.3 we see three goroutines and two unbuffered channels. The first goroutine
-passes a data value through the channel to a second goroutine that is already waiting. The
-exchange of the data between both goroutines is synchronized and once the hand off
-occurs, both goroutines know the exchange took place. After the second goroutine
-performs its tasks with the data, it then sends the data to a third goroutine that is waiting.
-Again, that exchange is also synchronized and both goroutines can have guarantees the
-exchange has been made. This safe exchange of data between goroutines requires no
-other locks or synchronization mechanisms.
-It is important to note that channels do not provide data access protection between
-goroutines. If copies of data are exchanged through a channel, then each goroutine has
-their own copy and can make any changes to that data safely. If pointers to the data are
-being exchanged, each goroutine still needs to be synchronized if reads and writes are
-going to be performed by the different goroutines.
+Three goroutines and two unbuffered channels. The first goroutine passes a data value through the channel to a second goroutine that is already waiting. The exchange of the data between both goroutines is synchronized and once the hand off occurs, both goroutines know the exchange took place. After the second goroutine performs its tasks with the data, it then sends the data to a third goroutine that is waiting. Again, that exchange is also synchronized and both goroutines can have guarantees the exchange has been made. This safe exchange of data between goroutines requires no other locks or synchronization mechanisms.
+
+It is important to note that channels do not provide data access protection between goroutines. If copies of data are exchanged through a channel, then each goroutine has their own copy and can make any changes to that data safely. If pointers to the data are being exchanged, each goroutine still needs to be synchronized if reads and writes are going to be performed by the different goroutines.
 
 
-- SSL, TLS, HTTPS
+#### SSL, TLS, HTTP(S)
 
-* SSL (Secure Socket Layer) is a protocol that provides data encryption and authentication between two parties, usually a client and a server, using Public Key Infrastructure (PKI).
+**SSL**
 
-* SSL was originally developed by Netscape, and was later taken over by the IETF, who renamed it to TLS.
+Secure Socket Layer is a protocol that provides data encryption and authentication between two parties, usually a client and a server, using Public Key Infrastructure (PKI).
 
-* HTTPS or HTTP over SSL is essentially just that, HTTP layered over an SSL/TLS connection.
+**TLS**
 
-An SSL/TLS certificate is used to provide data encryption and authentication. An SSL certificate is a X.509 formatted piece of data
-that contains some information, as well as a public key, stored at a web server. SSL certificates are usually signed by a certificate authority (CA), which assures the authenticity of the certificate. When the client makes a request to the server, it returns with the certificate. If the client is satisfied that the certificate is authentic, it will generate a random key and use the certificate (or more specifically the public key in the certificate) to encrypt it. This symmetric key is the actual key used to encrypt the data between the client and the server.
+SSL was originally developed by Netscape, and was later taken over by the IETF, who renamed it to TLS.
 
-In SSL, the certificates can be saved in files of different formats. One of them is the PEM format file (Privacy Enhanced Email, which doesn’t have much relevance here except as the name of the file format used), which is a Base64-encoded DER X.509 certificate enclosed between "-----BEGIN CERTIFICATE-----" and "-----END CERTIFICATE-----".
+**HTTPS or HTTP**
 
-- Type system
+HTTP layered over an SSL/TLS connection.
 
-In Go, you may define methods on any concrete type that you define, not just on structures. Go
-developers simply embed types to reuse functionality in a design pattern called `composition`. Other languages use composition, but it’s often deeply tied composition to inheritance,
-which can make it complicated and difficult to use.
+An SSL/TLS certificate is used to provide data encryption and authentication. An SSL certificate is a X.509 formatted piece of data that contains some information, as well as a public key, stored at a web server. SSL certificates are usually signed by a certificate authority (CA), which assures the authenticity of the certificate. When the client makes a request to the server, it returns with the certificate. If the client is satisfied that the certificate is authentic, it will generate a random key and use the certificate (or more specifically the public key in the certificate) to encrypt it. This symmetric key is the actual key used to encrypt the data between the client and the server.
+
+In SSL, the certificates can be saved in files of different formats. One of them is the PEM format file (Privacy Enhanced Email), which is a Base64-encoded DER X.509 certificate enclosed between "-----BEGIN CERTIFICATE-----" and "-----END CERTIFICATE-----".
+
+
+#### Type
+
+In Go, you may define methods that operate on that data on any concrete type that you define, not just on structures. Embed types to reuse functionality in a design pattern called **composition**.
 
 Data types categorize a set of related values, describe the operations that can be done on them and define the way they are stored. If you call a method on an expression with a static type directly, then the methods on it are just syntactic sugar on function calls. They are statically looked up and called.
 
-types may also declare methods
-that operate on that data
+**Types list**
+
+bool
+string: by default, type is rune (works for unicode character), not byte.
+
+uint: 32 or 64 bits
+uintptr: unsigned integer large enough to store the uninterpreted bits of a pointer value
+uint8/byte: unsigned, 8-bits integers ( 0 to 255 )
+uint16: unsigned, 16-bits integers ( 0 to 65535 )
+uint32: unsigned, 32-bits integers ( 0 to 4294967295 )
+uint64: unsigned, 64-bits integers ( 0 to 18446744073709551615 )
+
+int: 32 or 64 bits
+int8: signed, 8-bits integers ( -128 to 127 )
+int16: signed, 16-bits integers ( -32768 to 32767 )
+int32/rune: signed, 32-bits integers ( -2147483648 to 2147483647 )
+int64: signed, 64-bits integers ( -9223372036854775808 to 9223372036854775807)
+
+float32: the set of all IEEE-754 32-bit floating-point numbers. Refer as single precision
+float64: the set of all IEEE-754 64-bit floating-point numbers. Refer as double precision (Recommend using when floating numbers)
+
+complex64: the set of all complex numbers with float32 real and imaginary parts
+complext128: the set of all complex numbers with float64 real and imaginary parts
+
+byte: alias for uint8
+rune: alias for int32 (represents a Unicode code point or character)
+
+array
+slice: (Recommended). a segment of an array
+struct: define type of contracts. Go does not have classes.
+
+function
+interface
+map
+channel
+
+
+#### Interface
+
+Interfaces allow us to express the behavior of a type. If a value of a type implements an interface, it means the value has a specific set of behaviors. If our type implements the methods of an interface, a value of our type can be stored in a value of that interface type. No special declarations are required.
+
+Go has a unique interface implementation that allows us to model behavior, rather than modeling types. We don’t need to declare that we’re implementing an interface in Go; the compiler does the work of determining whether values of our types satisfy the interfaces we’re using. Many interfaces in Go’s standard library are very small, exposing only a few functions.
 
 Go interface support duck typing and don’t have to be explicitly adopted. Any type that implements the methods that an interface lists implicitly implements that interface. Interface types can be used as variable types. When you call any method on an interface-typed variable, it uses dynamic dispatch to find the correct method implementation.
-
-In addition, Go has a unique interface implementation that allows us to model
-behavior, rather than modeling types. We don’t need to declare that we’re implementing
-an interface in Go; the compiler does the work of determining whether values of our
-types satisfy the interfaces we’re using. Many interfaces in Go’s standard library are very
-small, exposing only a few functions.
-
-- Interface
-
-GO INTERFACES MODEL SMALL BEHAVIORS
-
-Interfaces allow us to express the behavior of a type. If a value of a type implements an
-interface, it means the value has a specific set of behaviors. We don’t even need to
-declare that we’re implementing an interface; we just need to write the implementation.
-Other languages call this —if it quacks like a duck, duck typing then it can be a
-duck—and Go does it well. In Go, if our type implements the methods of an interface, a
-value of our type can be stored in a value of that interface type. No special declarations
-are required.
 
 **empty interface**
 
@@ -187,7 +185,8 @@ You can either define an interface specifying the methods that you require, or u
 
 empty interface type, which means it can take in any type. It provide the flexibility of accepting different types, using interfaces. Interfaces in Go are constructs that are sets of methods and are also types. An empty interface is then an empty set, meaning any type can be an empty interface; we can pass any type into this function.
 
-- Garbage collection
+
+#### Garbage collection
 
 Garbage collection (automatically) means that you don’t have to think about when to deallocate memory. In Go, you explicitly allocate values, but they are automatically reclaimed when they are no longer required. As with other garbage collected languages, it is still possible to leak objects if you accidentally keep references to them after you stop using them.
 
@@ -359,39 +358,3 @@ Floating point numbers are numbers that contain a decimal component.
 
 String literals can be created using double quotes "Hello World" which can contain newlines and they allow special escape sequences, or back ticks `Hello World`, use in multi lines, excaping characters.
 
-
-- Types list
-
-bool
-string: by default, type is rune (works for unicode character), not byte.
-
-uint: either 32 or 64 bits
-uintptr: un unsigned integer large enough to store the uninterpreted bits of a pointer value
-uint8/byte: unsigned, 8-bits integers ( 0 to 255 )
-uint16: unsigned, 16-bits integers ( 0 to 65535 )
-uint32: unsigned, 32-bits integers ( 0 to 4294967295 )
-uint64: unsigned, 64-bits integers ( 0 to 18446744073709551615 )
-
-int: either 32 or 64 bits
-int8: signed, 8-bits integers ( -128 to 127 )
-int16: signed, 16-bits integers ( -32768 to 32767 )
-int32/rune: signed, 32-bits integers ( -2147483648 to 2147483647 ). Like a Character, Unicode
-int64: signed, 64-bits integers ( -9223372036854775808 to 9223372036854775807)
-
-float32: the set of all IEEE-754 32-bit floating-point numbers. Refer as single precision
-float64: the set of all IEEE-754 64-bit floating-point numbers. Refer as double precision (Recommend using when floating numbers)
-
-complex64: the set of all complex numbers with float32 real and imaginary parts
-complext128: the set of all complex numbers with float64 real and imaginary parts
-
-byte: alias for uint8
-rune: alias for int32 (represents a Unicode code point)
-
-array
-slice: Recommend to use. a segment of an array
-struct: define OO type of contracts. Go does not have classes.
-
-function
-interface
-map
-channel
