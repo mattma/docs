@@ -1,43 +1,25 @@
 ## Navigation
 
-**words** are anything delimited by non-identifier characters
-**paragraph** in Vim are anything delimited by empty line (not blank lines)
+**words** `w` are anything delimited by non-identifier characters
+**paragraph** `p` in Vim are anything delimited by empty line (not blank lines)
+**sentence** `s`
 
-- ctrl + d
+- ctrl + d    go down
+- ctrl + u    go up
 
-go down
+- w     Move forward to the start of the next word. delimited by spaces, tabs, or punctuation.
 
-- ctrl + u
+- W     Move the cursor to start of the next word. delimited by spaces, tabs.
 
-go up
+- b     Move backwards to the start of the previous word. delimited by spaces, tabs, or punctuation.
 
-- w
+- B     Move the cursor to the beginning of the previous word. delimited by spaces, or tabs
 
-move forward to the start of the next word. delimited by spaces, tabs, or punctuation.
+- e     Move forward to the end of the next word
 
-- W
+- ge    Move backwards to the end of the previous word
 
-Move the cursor to start of the next word. delimited by spaces, tabs.
-
-- b
-
-move backwards to the start of the previous word. delimited by spaces, tabs, or punctuation.
-
-- B
-
-Move the cursor to the beginning of the previous word. delimited by spaces, or tabs
-
-- e
-
-move forward to the end of the next word
-
-- ge
-
-move backwards to the end of the previous word
-
-- 0
-
-move to the start of the current line
+- 0     Move to the start of the current line
 
 - ^
 
@@ -62,7 +44,6 @@ move to the start of the current paragraph
 - }
 
 move to the end of the current paragraph
-
 
 - gg
 
@@ -148,6 +129,10 @@ Open below command. Opens a line below the current line and puts you in insert m
 Open above command. Opens a line above the current line and put you in insert mode
 
 
+- viw    inside a word, and visually select the whole word
+- vaw    inside a word, and visually select the whole word, follow empty space
+- daw    delete a word, and remove an follow empty space
+
 #### Delete, copy, change text
 
 - x
@@ -204,6 +189,16 @@ puts the copied text to the left of the cursor
 - p
 
 puts the buffered text to the right of the cursor
+
+#### Search
+
+- f
+
+ex: `fs` find the first "s", and jump there
+
+- vf
+
+ex: `vfs` find the first "s", and visual select till "s"
 
 
 ## System

@@ -1,3 +1,11 @@
+`.a`file, These files are special static Go libraries that the Go build tools create and use
+when compiling and linking your final programs together. This helps the build process
+to be fast. But there’s no way to specify these files when performing a build, so
+you can’t share them. The Go tooling knows when it can use an existing .a file and
+when it needs to rebuild one from the source code on your machine.
+
+
+
 When you’re writing code that will live in its own package, it’s good practice to name the package the same as the folder the code is in.
 All the Go tooling expects this convention, so it’s a good practice to follow.
 

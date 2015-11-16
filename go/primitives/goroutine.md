@@ -521,6 +521,74 @@ resource.
  Unbuffered channels provide a guarantee between an exchange of data. Buffered
 channels do not.
 
+You can use channels to control the lifetime of programs.
+ A select statement with a default case can be used to attempt a nonblocking
+send or receive on a channel.
+ Buffered channels can be used to manage a pool of resources that can be
+reused.
+ The coordination and synchronization of channels is taken care of by the
+runtime.
+ Create a pool of goroutines to perform work using unbuffered channels.
+ Any time an unbuffered channel can be used to exchange data between two
+goroutines, you have guarantees you can count on.
+
+
+## Concurrency pattern
+
+#### Runner
+
+The purpose of the runner package is to show how channels can be used to monitor
+the amount of time a program is running and terminate the program if it runs
+too long. This pattern is useful when developing a program that will be scheduled
+to run as a background task process. This could be a program that runs as a cron
+job, or in a worker-based cloud environment like Iron.io.
+
+`os.Signal`
+
+This interface
+abstracts specific implementations for trapping and reporting events from different
+operating systems.
+
+```go
+// golang.org/pkg/os/#Signal
+// A Signal represents an operating system signal. The usual underlying
+// implementation is operating system-dependent: on Unix it is
+// syscall.Signal.
+type Signal interface {
+String() string
+Signal() // to distinguish from other Stringers
+}
+```
+
+
+shows a classic use of the select statement
+with a default case.
+
+the code attempts to receive on the interrupt channel.
+Normally that would block if there was nothing to receive,
+The default case turns the attempt to receive on the interrupt channel
+into a nonblocking call. If there’s an interrupt to receive, then it’s received and
+processed. If there’s nothing to receive, the default case is then executed.
+
+```go
+select {
+// Signaled when an interrupt event is sent.
+case <-r.interrupt:
+    // Stop receiving any further signals.
+    signal.Stop(r.interrupt)
+    return true
+// Continue running as normal.
+default:
+    return false
+ }
+```
+
+
+Since the work channel is an unbuffered channel, the caller must wait
+for a goroutine from the pool to receive it. This is what we want, because the caller
+needs the guarantee that the work being submitted is being worked on once the call
+to Run returns.
+
 
 
 ## Concurrency

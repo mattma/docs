@@ -192,6 +192,20 @@ apply and format a predetermined layout to Go source code. type `go fmt` followe
 The fmt command will automatically format the source code files we specify and save
 them
 
+#### go test
+
+The Go testing
+tool will only look at files that end in `_test.go`. Once the
+testing tool finds a testing file, it then looks for testing functions to run.
+
+If the verbose option
+(-v) isn’t used when calling `go test`, we won’t see any test output (t.Logf, etc) unless the test fails.
+
+```bash
+# -v means provide verbose output,
+go test -v
+```
+
 ## Popular tools
 
 `Goimports` is a tool that updates your Go import lines, adding missing ones and removing unreferenced ones.

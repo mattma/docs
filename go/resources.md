@@ -22,6 +22,9 @@
 
 6. [Go wiki](https://github.com/golang/go/wiki)
 
+## Blog
+
+1. [Going Go](http://www.goinggo.net/)
 
 ## Collections
 

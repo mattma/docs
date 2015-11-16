@@ -14,6 +14,17 @@ opening of the file occurs, which helps with readability and reducing bugs
 
 -  variable arguments in func
 
+a variadic function that accepts any number
+of values
+
 Can only have one `...`, always at the end of the parameters
 
+Varadic parameters can accept any number of values that are passed in.
 
+```go
+// Add attaches tasks to the Runner. A task is a function that
+// takes an int ID.
+func (r *Runner) Add(tasks ...func(int)) {
+r.tasks = append(r.tasks, tasks...)
+}
+```
