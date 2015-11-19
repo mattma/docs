@@ -1,3 +1,108 @@
+- CLI flag
+
+Go’s singledash
+long options eliminate the ability (as we just saw) of grouping single-character options
+into one.
+
+A flag can be short
+or long and each flag needs to be separated from the others. For example, if you run go help
+build you’ll see flags such as -v, -race, -x, and -work. For the same option you’ll see a
+single flag rather than a long or short name to use.
+
+two ways to define a flag. The first is where a variable can be
+created from a flag.
+
+The second method to handle a flag is the one that implicitly lets you have a long and
+short flag. Start by creating a normal variable #2 of the same type as the flag. This will be
+used to store the value of a flag. Then use one of the flag functions that places the value of a
+flag into an existing variable #3. In this case flag.BoolVar() is used twice; once for the long
+name and once for the short name.
+
+```go
+// Create a new variable from a flag
+// takes a flag name, default value, and description as arguments.
+// The value of name is an address containing the value of the flag. To access this value you’ll need to access name as a pointer
+var name = flag.String("name", "World", "A name to say hello to.")
+// New variable to store flag value
+var spanish bool
+
+func init() {
+    // Set variable to the flag value
+    flag.BoolVar(&spanish, "spanish", false, "Use Spanish language.")
+    flag.BoolVar(&spanish, "s", false, "Use Spanish language.")
+}
+func main() {
+    // Parse the flags placing values in variables
+    flag.Parse()
+    if spanish == true {
+        // Access name as a pointer
+        fmt.Printf("Hola %s!\n", *name)
+    } else {
+        fmt.Printf("Hello %s!\n", *name)
+    }
+}
+```
+
+Here each flag is separate from the rest and begins with either a - or -- as they are
+interchangeable.
+
+```bash
+flag_cli   # Hello World!
+flag_cli -s –name Buttercup   # Hola Buttercup!
+$ flag_cli --spanish –name Buttercup  # Hola Buttercup!
+```
+
+The flag package doesn’t create help text for you but it does help with the flags. The flag
+package has two handy functions you can use. The `PrintDefaults` function will generate help
+text for flags.
+
+
+Flags also have a `VisitAll` function that accepts a callback function as an argument. This
+will iterate over each of the flags executing the callback function on it and allow you to write
+your own help text for them.
+
+```go
+flag.VisitAll(func(flag *flag.Flag) {
+  format := "\t-%s: %s (Default: '%s')\n"
+  fmt.Printf(format, flag.Name, flag.Usage, flag.DefValue)
+})
+```
+
+- Parsing JSON
+
+First, a type or collection of types needs to be
+created representing the JSON file. The names and nesting must to be defined and map to
+the structure in the JSON file.
+
+The main function begins by opening the configuration file #2
+and decoding the JSON file into an instance of the configuration struct #3. If there are no
+errors, the values from the JSON file will not be available on the conf variable and can be
+used in your application.
+
+
+```go
+// A type capable of holding the JSON values
+type configuration struct {
+  Enabled bool
+  Path string
+}
+func main() {
+  // Open the configuration file
+file, _ := os.Open("conf.json")
+  defer file.Close()
+  decoder := json.NewDecoder(file)
+  conf := configuration{}
+  // Parse the JSON into a variable with the variables
+  err := decoder.Decode(&conf)
+  if err != nil {
+    fmt.Println("Error:", err)
+  }
+  fmt.Println(conf.Path)
+}
+```
+
+-
+
 `.a`file, These files are special static Go libraries that the Go build tools create and use
 when compiling and linking your final programs together. This helps the build process
 to be fast. But there’s no way to specify these files when performing a build, so

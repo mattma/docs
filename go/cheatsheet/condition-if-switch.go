@@ -3,9 +3,7 @@ package main
 import "fmt"
 
 func main() {
-
 	// If Statement
-
 	yourAge := 18
 
 	if yourAge >= 16 {
@@ -16,7 +14,6 @@ func main() {
 
 	// You can use else if perform different actions, but once a match
 	// is reached the rest of the conditions aren't checked
-
 	if yourAge >= 16 {
 		fmt.Println("You Can Drive")
 	} else if yourAge >= 18 {
@@ -26,7 +23,6 @@ func main() {
 	}
 
 	// Switch statements are used when you have limited options
-
 	switch yourAge {
 	case 16:
 		fmt.Println("Go Drive")
@@ -35,5 +31,4 @@ func main() {
 	default:
 		fmt.Println("Go Have Fun")
 	}
-
 }
