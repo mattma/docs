@@ -1,3 +1,14 @@
+Summary
+
+Testing is built into the language and Go provides all the tooling you need.
+ The go test tool is used to run tests.
+ Test files always end with the _test.go file name.
+ Table tests are a great way to leverage a single test function to test multiple
+values.
+ Examples are both tests and documentation for a package.
+ Benchmarks provide a mechanism to reveal the performance of code.
+
+
 - Unit testing
 
 A unit test is a function that tests a specific piece or set of code from a package or program.
@@ -88,4 +99,46 @@ func TestDownload(t *testing.T) {
     t.Logf("\tWhen checking \"%s\" for status code \"%d\"", server.URL, statusCode)
     // ...
 }
+```
+
+- Benchmark
+
+Benchmarking is a way to test the performance of code. It’s useful when you want to test
+the performance of different solutions to the same problem and see which solution performs
+better. It can also be useful to identify CPU or memory issues for a particular piece
+of code that might be critical to the performance of your application. Many developers
+use benchmarking to test different concurrency patterns or to help configure work
+pools to make sure they’re configured properly for the best throughput.
+
+you see the first benchmark, named `BenchmarkSprintf`.
+Benchmark functions begin with the word `Benchmark` and take as their only parameter
+a pointer of type `testing.B`.
+
+In order for the benchmarking framework to calculate
+performance, it must run the code over and over again for a period of time. This
+is where the for loop comes in. That is `for` loop comes in.
+
+```go
+// fmt.Sprintf function.
+func BenchmarkSprintf(b *testing.B) {
+    number := 10
+    // reset the timer when initialization is required before the code can start executing the loop.
+    b.ResetTimer()
+
+    for i := 0; i < b.N; i++ {
+        fmt.Sprintf("%d", number)
+    }
+}
+```
+
+By default, the benchmarking framework will call the benchmark function over
+and over again for at least one second. Each time the framework calls the benchmark
+function, it will increase the value of b.N. On the first call, the value of b.N will be 1.
+It’s important to place all the code to benchmark inside the loop and to use the b.N
+value. If this isn’t done, the results can’t be trusted.
+
+If we just want to run benchmark functions, we need to use the -bench option.
+
+```bash
+go test -v -run="none" -bench="BenchmarkSprintf"
 ```

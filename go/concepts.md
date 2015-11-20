@@ -103,6 +103,26 @@ file, _ := os.Open("conf.json")
 
 -
 
+Go compiles to a single binary for an operating system. This binary contains the Go
+runtime, all the imported packages, and the entire application. Everything needed to run the
+program.
+
+Python and PHP are dynamicly typed languages while Go is a staticly typed langauges with
+dynamic-like features. Dynamic languages check type at runtime and even perform what
+appear to be type conversaions on the fly. Statically typed languages do type checking based
+on static code analysis. Go has the ability to do some type switching. Under some
+circumstances, variables of one type can be turned into variables of a different type. This may
+seem unorthodox for a statically typed language but it’s quite useful.
+
+JavaScript has a single threaded model. While asynchronous I/O may use separate
+threads, the main program executes in a single thread. When code in the main thread takes a
+significant amout of time it blocks other code from executing. Go uses a multi-thread model
+where the runtime manages goroutines running concurrently on the different threads. The Go
+model, with multiple threads running across multiple cores, can take advantage of more of the
+available hardware than the single thread used in JavaScript.
+
+
+
 `.a`file, These files are special static Go libraries that the Go build tools create and use
 when compiling and linking your final programs together. This helps the build process
 to be fast. But there’s no way to specify these files when performing a build, so

@@ -17,6 +17,19 @@ as well. Using channels makes it easier to write concurrent programs and makes
 them less prone to errors.
 
 
+A goroutine is a function executing concurrently to other functions, run on a thread managed by the Go scheduler. Goroutines can be moved between operating system threads by the Go scheduler. If a thread is blocked, say by an I/O bound task, other goroutines can be moved to other threads.
+
+
+Sometimes dubbed lightweight threads, goroutines are
+managed by the Go runtime where they are mapped and moved to the appropriate operating
+system thread and garbage collected when no longer needed. When multiple processor cores
+are available the goroutines can be run in parallel as there are different threads running on
+different processing cores.
+
+Channels provide a manner for two goroutines to communicate with each other and by
+default they block execution, allowing goroutines to synchronize.
+
+
 #### Concurrency versus parallelism
 
 Each process contains at least one thread, and the initial thread for each process is

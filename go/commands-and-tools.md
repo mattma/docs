@@ -157,6 +157,13 @@ go build -ldflags "-X main.Build a1064bc" example.go
 
 To run current go program to bin directory
 
+Executing this go install command will fetch, build, and install the code coverage
+package. Code coverage, not available prior to this installation is now available on tests.
+
+```bash
+$ go install code.google.com/p/go.tools/cmd/cover
+```
+
 #### go list
 
 list packages
@@ -192,18 +199,111 @@ apply and format a predetermined layout to Go source code. type `go fmt` followe
 The fmt command will automatically format the source code files we specify and save
 them
 
+Running the
+go fmt command from the root of a package will cause Go to go through each of the .go files
+in a package and rewrite them into the canonical style. The go fmt command can have a path
+to a package or ./... (iterate over all sub-directories) appended to it.
+
 #### go test
 
 The Go testing
 tool will only look at files that end in `_test.go`. Once the
 testing tool finds a testing file, it then looks for testing functions to run.
 
+the package name also ends with _test. When
+the package name ends like this, the test code can only access exported identifiers.
+This is true even if the test code file is in the same folder as the code being tested.
+
+
 If the verbose option
 (-v) isn’t used when calling `go test`, we won’t see any test output (t.Logf, etc) unless the test fails.
+
+```go
+// ExampleSendJSON provides a basic example.
+func TestSendJSON() {
+}
+```
+
+The -run option
+takes any regular expression to filter the test functions to run. It works with both unit
+tests and example functions.
 
 ```bash
 # -v means provide verbose output,
 go test -v
+
+# the specific function TestSendJSON is specified with the -run option
+go test -v -run="TestSendJSON"
+```
+
+we specified the -run option passing the string "none" to make
+sure no unit tests are run prior to running the specified benchmark function. Both of
+these options take a regular expression to filter the tests to run. Since there’s no unit
+test function that has none in its name, none eliminates any unit tests from running.
+
+After the word PASS, you see the result of running
+the benchmark function. The first number, 5000000, represents the number of
+times the code inside the loop was executed. In this case, that’s five million times. The
+next number represents the performance of the code based on the number of nanoseconds
+per operation, so using the Sprintf function in this context takes 258 nanoseconds
+on average per call.
+
+The final output from running the benchmark shows ok to represent the benchmark
+finished properly. Then the name of the code file that was executed is displayed,
+and finally, the total time the benchmark ran. The default minimum run time for a
+benchmark is 1 second. You can see how the framework still ran the test for approximately
+a second and a half. You can use another option called -benchtime if you want
+to have the test run longer. Let’s run the test again using a bench time of three seconds
+(see figure 9.15)
+
+```bash
+# only run benchmark test
+go test -v -run="none" -bench="BenchmarkSprintf"
+```
+
+This time with the output you see two new values: a value for B/op and one for
+allocs/op. The allocs/op value represents the number of heap allocations per operation.
+You can see the Sprintf functions allocate two values on the heap per operation,
+and the other two functions allocate one value per operation. The B/op value
+represents the number of bytes per operation. You can see that those two allocations
+from the Sprintf function result in 16 bytes of memory being allocated per operation.
+The other two functions only allocated 2 bytes per operation.
+
+```bash
+# -benchmem, will provide information about the number of allocations and bytes per allocation for a given test.
+go test -v -run="none" -bench=. -benchtime="3s" -benchmem
+```
+
+CODE COVERAGE, code.google.com/p/go.tools/cmd/cover
+
+http://blog.golang.org/cover  more info about cover tool
+
+```bash
+go test -cover
+```
+
+#### go doc
+
+There’s one rule you need to follow with examples. An example is always based on
+an existing exported function or method. If you don’t use the name of an existing
+function or method, the test won’t show in the Go documentation for the package.
+
+The code you write for an example is to show someone how to use the specific function
+or method.
+
+The Output: marker is used to document the output you expect to have after the
+test function is run. The testing framework knows how to compare the final output from stdout against this output comment. If everything matches, the test passes, and
+you have an example that works inside the Go documentation for the package. If the
+output doesn’t match, the test fails.
+
+If you start a local godoc server (godoc -http=":3000") and navigate to the
+handlers package, you can see this all come together.
+
+
+```go
+// ExampleSendJSON provides a basic example.
+func ExampleSendJSON() {
+}
 ```
 
 ## Popular tools
@@ -244,6 +344,13 @@ import (
 
 gb is a whole new class of build tool being developed by members of the Go community. It is not compatible with GoTool.
 
+#### cgo
+
+C + Go = cgo
+Go provides support for binding C libraries to Go programs. Go provides a library of C compatibility
+tools. This library eases the transition between, for example, C-style strings and Go strings.
+Furthermore, the Go tools can build mixed C and Go programs. Go also has support for SWIG
+wrappers. You can get a feel for the features by running godoc c and reading the brief overview.
 
 ## Setup IDE
 
