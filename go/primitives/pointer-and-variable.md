@@ -1,3 +1,30 @@
+There are several ways
+to declare a str ing var iable; these are all equivalent
+
+```go
+s := ""
+var s string
+var s = ""
+var s string = ""
+```
+The first form, a short var iable declarat ion, is
+the most compact, but it may be used only within a function, not for package-le vel var iables.
+The second form relies on defau lt initializat ion to the zero value for str ings, which is "". The
+third form is rarely used except when declaring multiple var iables. The fourth form is explicit
+ab out the var iable’s typ e, which is redundant when it is the same as that of the initial value but
+necessary in other cas es where they are not of the same typ e. In prac tice, you should general ly
+use one of the first two forms, with explicit initializat ion to say that the initial value is
+important and implicit initializat ion to say that the initial value doesn’t matter.
+
+Note:
+
+The statement   <counts></counts> is equivalent to thes e two statements:
+
+line := input.Text()
+counts[line] = counts[line] + 1
+
+
+
 
 Pointers are a way of sharing data across functions and goroutines.
 

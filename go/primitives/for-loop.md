@@ -1,18 +1,3 @@
-
-#### Loop
-
-The keyword range can be used with arrays, strings, slices,
-maps, and channels. When we use for range to iterate over a slice, we get two values
-back on each iteration. The first is the index position of the element we’re iterating ,over
-and the second is a copy of the value in that element.
-
-```go
-// basic loop
-sum := 0
-for i := 0; i < 10; i++ {
-  sum += i
-}
-
 // For loop without pre/post statements
 sum := 1
 for ; sum < 1000; {
@@ -30,6 +15,9 @@ for {
   // do something in a loop forever
 }
 ```
+
+the loop is infinite, thoug h lo ops of this form may be ter minated in some other way, like a
+break or return statement.
 
 - Range
 
