@@ -1,125 +1,85 @@
-### Pointers
+# Pointer
 
-Go provides pointers, that is, values that contain the address of a variable. In some languages, notably C, pointers are relatively unconstrained. In other languages, pointers are disguised as "references", and there's not much that can be done with them except pass them around. Go takes a position somewhere in the middle. Pointers are explicitly visible. The `&` operator yields the address of a variable, and the `*` operator retrieves the variable that the
-pointer refers to, but there is no pointer arithmetic.
+Go has pointers, but no pointer arithmetic. Pointers reference a location in memory where a value is stored rather than the value itself.
 
+Pointers is values that contain the address of a variable. In other languages, pointers are disguised as "references", and there's not much that can be done with them except pass them around. Pointers are explicitly visible.
 
-There are several ways
-to declare a str ing var iable; these are all equivalent
+`&` operator yields the address of a variable, `&` symbol in front of the value to get the pointer of a value
+`*` operator retrieves the variable that the pointer refers to, dereference a pointer, but there is no pointer arithmetic.
 
-```go
-s := ""
-var s string
-var s = ""
-var s string = ""
-```
-The first form, a short var iable declarat ion, is
-the most compact, but it may be used only within a function, not for package-le vel var iables.
-The second form relies on defau lt initializat ion to the zero value for str ings, which is "". The
-third form is rarely used except when declaring multiple var iables. The fourth form is explicit
-ab out the var iable’s typ e, which is redundant when it is the same as that of the initial value but
-necessary in other cas es where they are not of the same typ e. In prac tice, you should general ly
-use one of the first two forms, with explicit initializat ion to say that the initial value is
-important and implicit initializat ion to say that the initial value doesn’t matter.
+Struct fields can be accessed through a struct pointer. Can call fields and methods on a pointer.
 
-Note:
+- Pointers are a way of sharing data across functions and goroutines.
 
-The statement   <counts></counts> is equivalent to thes e two statements:
+A pointer is represented using the `*` (asterisk) character followed by the type of the stored value. `*` is also used to "dereference" pointer variables. Dereferencing a pointer gives us access to the value the pointer points to.
 
-line := input.Text()
-counts[line] = counts[line] + 1
-
-
-
-
-Pointers are a way of sharing data across functions and goroutines.
-
-Pointers reference a location in memory where a value
-is stored rather than the value itself.
+`&` operator to find the address of a variable. `&x` returns a `*int` (pointer to an int) because `x` is an `int`. This is what allows us to modify the original variable. `&x` in main and `xPtr` in zero refer to the same memory location.
 
 ```go
 func zero(xPtr *int) {
-*xPtr = 0
+  *xPtr = 0
 }
+
 func main() {
-x := 5
-zero(&x)
-fmt.Println(x) // x is 0
+  x := 5
+  zero(&x)
+  fmt.Println(x) // x is 0
 }
 ```
 
-In Go a pointer is represented using the * (asterisk)
-character followed by the type of the stored value.
-* is also used to “dereference” pointer variables. Dereferencing
-a pointer gives us access to the value the
-pointer points to.
+## new
 
-we use the & operator to find the address of a variable. &x returns a *int (pointer to an int) because x
-is an int. This is what allows us to modify the original
-variable. &x in main and xPtr in zero refer to the same
-memory location.
-
-
-- new
-
-new takes a type as an argument, allocates enough
-memory to fit a value of that type and returns a
-pointer to it.
-Another way to get a pointer is to use the built-in new
-function:
+`new` takes a type as an argument, allocates enough memory to fit a value of that type and returns a pointer to it.
 
 ```go
 func one(xPtr *int) {
-*xPtr = 1
+  *xPtr = 1
 }
 func main() {
-xPtr := new(int)
-one(xPtr)
-fmt.Println(*xPtr) // x is 1
+  xPtr := new(int)
+  one(xPtr)
+  fmt.Println(*xPtr) // x is 1
 }
 ```
-
-#### Pointers
-
-Go has pointers, but no pointer arithmetic. Struct fields can be accessed through a struct pointer. Can call fields and methods on a pointer.
-
-By default, Go passes augruments by value (copying the arguments), if pass the argument by reference, pass pointers or use a structure using reference values like slices and maps.
-
-To get the pointer of a value, use the **&** symbol in front of the value, to dereference a pointer, use `*`.
-
-Methods are often defined on pointers and not values, although they can be defined on both, often store a pointer in a variable.
-
 
 #### Gotcha
 
-1. There is no pointer arithmetic. You cannot write in Go
+1. No pointer arithmetic.
 
-you cannot alter the address p points to unless you assign another address to it.
+Cannot alter the address `p` points to unless you assign another address to it.
 
 ```go
-var p *int
-p++
+var p *int  // Pointer cannot do arithetic. Change to `int` will work
+p++ // invalid operation: p++ (non-numeric type *int)
 ```
 
-2.
+2. Safe pointer
 
-Once a value is assigned to a pointer, with the exception of `nil`, Go guarantees that the thing being pointed to will continue to be valid for the lifetime of the pointer. So is totally safe to do in Go. The compiler will arrange for the memory location holding the value of i to be valid after f() returns
+Once a value is assigned to a pointer, with the exception of `nil`, Go guarantees that the thing being pointed to will continue to be valid for the lifetime of the pointer. The compiler will arrange for the memory location holding the value of i to be valid after f() returns
 
 ```go
 func f() *int {
   i := 1
-  return &i
+  return &i  // 0x820244080. Return the address of value
 }
 ```
 
-3.
+3. `nil` pointers
 
-`Nil` pointers. Yes, you can still have nil pointers and panics because of them, however in my experience the general level of hysteria generated by nil pointer errors, and the amount of defensive programming present in other languages like Java is not present in Go.
+you can have `nil` pointers and `panic` because of them
 
-multiple return values, nil is not used as a sentinel for something went wrong. Obviously this leaves the question of programmers not checking their errors, but this is simply a matter of education.
+Strings are value types, not pointers. `var s string // the zero value of s is "", not nil`
 
-Strings are value types, not pointers, which is the, IMO, the number one cause of null pointer exceptions in languages like Java and C++.
+In fact, most of the built in data types, maps, slices, channels, and arrays, have a sensible default if they are left uninitialized.
 
-`var s string // the zero value of s is "", not nil`
 
-In fact, most of the built in data types, maps, slices, channels, and arrays, have a sensible default if they are left uninitialized. Thanks to Dustin Sallings for pointing this out.
+# Varible
+
+There are several ways to declare a string variable; these are all equivalent. In practice, you should generally use one of the first two forms, with explicit initialization to say that the initial value is important and implicit initialization to say that the initial value doesn’t matter.
+
+```go
+s := ""  // used only within a function, not for package level variables.
+var s string // relies on default initialization to the zero value for strings, which is ""
+var s = ""  // rarely used except when declaring multiple variables
+var s string = ""  // explicit about the variable’s type, useful where they are not of the same type
+```

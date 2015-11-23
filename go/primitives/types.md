@@ -12,6 +12,10 @@ Some types get their representation based on the architecture of the machine the
 
 A type declaration makes it possible to give a name to an existing type.
 
+User-defined types can be declared using the keyword `struct` or by specifying
+an existing type. Methods provide a way to add behavior to user-defined types.
+Think of types as having one of two natures, primitive or non-primitive.
+
 Go allows to declare your own types. When you declare a new type, the declaration is constructed to provide the compiler with size and representation information, similar to how the built-in types work.
 
 There are two ways to declare a user defined type in Go. The most common way is to use the keyword `struct`, which allows you to create a composite type.
@@ -40,6 +44,10 @@ There are two types of receivers in Go: value receivers and pointer receivers.
 When you declare a method using a value receiver, the method will always be operating operate on a copy of the value used to make the method call.
 
 When you call a method declared with a pointer receiver, the value used to make the call is shared with the method, pointer receivers operate on the actual value.
+
+By default, Go passes augruments by value (copying the arguments). If pass the argument by reference, pass pointers or use a structure using reference values like slices and maps.
+
+Methods are often defined on pointers and not values, although they can be defined on both, often store a pointer in a variable.
 
 ```go
 // value receiver: declared as a value of type user.
@@ -93,6 +101,53 @@ Methods        Receivers Values
 ```
 
 The question now is why the restriction? Because it’s not always possible to get the address of a value, the method set for a value only includes methods that are implemented with a value receiver.
+
+
+It’s best practice to declare methods using pointer receivers, since many of the methods need to manipulate the state of the value being used to make the method call. Using a pointer makes no sense since there is no state to be manipulated.
+
+Unlike when we call methods directly from values and pointers, when we’re calling a method via an interface type value, the rules are different. Methods declared with pointer receivers can only be called by interface type values that contain pointers. Methods declared with value receivers can be called by interface type values that contain both values and pointers.
+
+**Example of method calls**
+
+```go
+// Way 1
+// Method declared with a value receiver of type defaultMatcher
+func (m defaultMatcher) Search(feed *Feed, searchTerm string)
+// Declare a pointer of type defaultMatcher
+dm := new(defaultMatcher)
+// The compiler will dereference the dm pointer to make the call
+dm.Search(feed, "test")
+
+// Way 2
+// Method declared with a pointer receiver of type defaultMatcher
+func (m *defaultMatcher) Search(feed *Feed, searchTerm string)
+// Declare a value of type defaultMatch
+var dm defaultMatcher
+// The compiler will reference the dm value to make the call
+dm.Search(feed, "test")
+```
+
+**example of interface method call restrictions**
+
+```go
+// Method declared with a pointer receiver of type defaultMatcher
+func (m *defaultMatcher) Search(feed *Feed, searchTerm string)
+// Call the method via an interface type value
+var dm defaultMatcher
+var matcher Matcher = dm // Assign value to interface type
+matcher.Search(feed, "test") // Call interface method with value
+> go build
+cannot use dm (type defaultMatcher) as type Matcher in assignment
+
+// Method declared with a value receiver of type defaultMatcher
+func (m defaultMatcher) Search(feed *Feed, searchTerm string)
+// Call the method via an interface type value
+var dm defaultMatcher
+var matcher Matcher = &dm // Assign pointer to interface type
+matcher.Search(feed, "test") // Call interface method with pointer
+> go build
+Build Successful
+```
 
 
 #### Guideline: use a value or pointer receiver
