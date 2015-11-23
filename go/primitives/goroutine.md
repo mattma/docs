@@ -19,6 +19,8 @@ them less prone to errors.
 
 A goroutine is a function executing concurrently to other functions, run on a thread managed by the Go scheduler. Goroutines can be moved between operating system threads by the Go scheduler. If a thread is blocked, say by an I/O bound task, other goroutines can be moved to other threads.
 
+A goroutine is a concurrent function execution. A channel is a communication mechanism that allows one goroutine to pass values of a specified type to another goroutine. The function main runs in a goroutine and the go statement creates additional goroutines.
+
 
 Sometimes dubbed lightweight threads, goroutines are
 managed by the Go runtime where they are mapped and moved to the appropriate operating

@@ -70,3 +70,57 @@ to i = i + 1. There’s a corresponding decrement statement it hat
 subtracts 1. These are statements, not expressions as they are in most langu ages in the C fami ly, so j = i++ is illegal,
 and they are postfix only, so i
 is not legal either.
+
+```go
+func main() {
+counts := make(map[string]int)
+// The scanner reads from the program’s standard input.
+input := bufio.NewScanner(os.Stdin)
+// the result can be ret rie ved by cal ling input.Text(). The Scan function retur ns true if there is a line and false when there is no more input.
+for input.Scan() {
+counts[input.Text()]++
+}
+// NOTE: ignoring potential errors from input.Err()
+for line, n := range counts {
+if n > 1 {
+fmt.Printf("%d\t%s\n", n, line)
+}
+}
+}
+```
+
+A map holds a set of key/value pairs and provides constant-t ime operat ions to store, retr ieve,
+or test for an item in the set. The key may be of any typ e whos e values can compared with ==,
+strings being the most common example; the value may be of any typ e at all. In this example,
+the keys are str ings and the values are ints. The bui lt-in function make creates a new empty
+map; it has other uses too. Maps are discussed at lengt h in Sec tion 4.3.
+Each time dup reads a line of input, the line is used as a key into the map and the corresponding
+value is incremented. The statement counts[input.Text()]++ is equivalent to
+thes e two statements:
+
+```go
+line := input.Text()
+counts[line] = counts[line] + 1
+```
+
+It’s not a problem if the map doesn’t yet contain that key. The first time a new line is seen, the
+expression counts[line] on the rig ht-hand side evaluates to the zero value for its typ e, which
+is 0 for int.
+
+#### fmt verbs
+
+%d de cimal integer
+%x, %o, %b integer in hexade cimal, octal, binary
+%f, %g, %e floating-p oint number: 3.141593 3.141592653589793 3.141593e+00
+%t boole an: true or false
+%c rune (Unico de co de point)
+%s string
+%q quoted str ing "abc" or rune 'c'
+%v any value in a natural format
+%T type of any value
+%% literal percent sig n (no operand)
+
+By convention, formatting functions whose names end in f, such as
+log.Printf and fmt.Errorf, use the formatting rules of fmt.Printf, whereas those whose
+names end in ln follow Println, formatting their arguments as if by %v, followed by a
+newline.
