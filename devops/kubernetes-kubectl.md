@@ -492,6 +492,10 @@ kubectl version
 
 Print available API versions.
 
+28. kubectl get cs
+
+Returns status of each component
+
 #### Helping commands for debugging
 
 ```bash

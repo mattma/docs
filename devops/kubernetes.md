@@ -1,3 +1,129 @@
+## Kubernetes Book review
+
+Kubernetes Node
+
+Check `iptables` rules after `kube-proxy` run, `sudo iptables -t nat -S`, `sudo iptables -t nat -L`
+
+Beware of iptables version
+Kubernetes uses iptables to implement service proxy. iptables with version 1.4.11+ is recommended on Kubernetes. Otherwise iptable rules might be out of control and keep increasing. You can use `yum info iptables` to check current version of iptables.
+
+Check out your node capacity in minion
+
+```bash
+kubectl get nodes -o json | jq '.items[] | {name: .metadata.name, capacity: .status.capacity}'
+```
+
+- Create etcd user
+
+Due to security reason, create local user and group who can own etcd packages.
+
+```bash
+# reate group(-U), home directory(-d), and create it(-m)
+# name in GCOS field (-c), login shell(-s)
+sudo useradd -U -d /var/lib/etcd -m -c "etcd user" -s /sbin/nologin etcd
+```
+
+You can check /etc/passwd whether create etcd user has created or not.
+
+```bash
+# search etcd user on /etc/passwd, uid and gid is vary
+grep etcd /etc/passwd
+```
+
+```bash
+# delete user etcd
+sudo userdel -r etcd
+```
+
+check the process ID 1 on your system. Type `ps -P 1` to see the process name as below. To check on your Linux either systemd or init,
+
+
+- Flannel networking configuration
+
+After Flannel service starts, you should be able to see a file in `/run/flannel/subnet.env` and flannel0 bridge in `ifconfig`.
+
+After flanneld is up and running, using `ifconfig` or `ip` command to see there is a `flannel0` virtual bridge in the interface.
+
+```bash
+# check current ipv4 range
+# output: inet 192.168.50.0/16 scope global flannel0
+ip a | grep flannel | grep inet
+```
+
+We can see the above example the subnet lease of flannel0 is `192.168.50.0/16`. Whenever your flanneld service starts, flannel will acquire the subnet lease and save in etcd, and then write out the environment variable file in `/run/flannel/subnet.env` by default, or you could change the default path by --subnet-file parameter when launching it.
+
+Integrating with docker
+
+flannel already allocate one subnet (/run/flannel/subnet.env) with suggested `MTU` and `IPMASQ` setting. Docker daemon need the corresponding parameter
+
+```bash
+--bip=””  # Specify network bridge IP (docker0)
+--mtu=0   # Set the container network MTU (for docker0 and veth)
+--ip-masq=true  # Enable IP masquerading
+```
+
+ex: `/usr/bin/docker daemon --bip=\${FLANNEL_SUBNET} --mtu=\${FLANNEL_MTU} -H fd://` Staring docker by service docker start, and type ifconfig, you might be able to see the virtual network device docker0 and its allocated IP address from flannel.
+
+How it works?
+
+There are 2 virtual bridges named `flannel0` and `docker0` are created in previous steps. Let’s take a look on their IP range by ip command.
+
+```bash
+# checkout IPv4 network in local
+ip -4 a | grep inet
+
+# check the route
+route -n
+```
+
+every pod will have its own IP address, and packet is encapsulated so that pod IPs are routable. The packet from Pod1 will go though veth (virtual network interface) device that connects to docker0, and routes to flannel0. The traffic is encapsulated by flanneld and send to the host (10.42.1.172) of target pod.
+
+
+- system unit file
+
+```bash
+# make sure kube-apiserver is the first started daemon
+After=kube-apiserver.service
+Wants=kube-apiserver.service
+```
+
+```bash
+# healthy API server, service must be in active state
+Requires=kube-apiserver.service
+```
+
+`Requires` has more strict restrictions. In case that daemon kube-apiserver is crashed, kube-scheduler and kube-controller-manager would also be stopped. On the other hand, configuration with Requires is hard for debugging master installation. It is recommended that you enable this parameter once you make sure every setting is correct.
+
+
+If one node is expected as `Ready` but `NotReady`, go to that node to restart  docker and minion service by `service docker start` and `service kubernetes-minion start`
+
+```bash
+ ➜ kubectl describe svc naohai
+Name:           naohai
+Namespace:      default
+Labels:         name=naohai,role=marketing,version=canary
+Selector:       name=naohai,role=marketing,version=canary
+Type:           LoadBalancer
+IP:         10.100.209.179
+Port:           <unnamed>   3011/TCP
+NodePort:       <unnamed>   31009/TCP
+Endpoints:      10.244.64.27:3001,10.244.99.15:3001
+Session Affinity:   None
+No events.
+```
+
+`Port` here is an abstract Service port, which allows any other resources to access the Service within the cluster.
+`nodePort` will be indicated the external port for allowing external access.
+`targetPort` is the port the container allows traffic into, by default it will be the same with Port.
+
+The illustration is as below. External access will access Service with nodePort. Service acts as a load balancer to dispatch the traffic to Pod by Port 80. Pod will then pass through the traffic into the corresponding container by targetPort 80.
+
+
+In any nodes or master (if your master has flannel installed), you should be able to curl internal ip endpoint. ex: curl 192.168.50.4:80
+
+
+---
+
 etcd: the store where cluster configuration
 
 api-server: everything goes through API server. All other components watch API server, they do not know anything about etcd, etc.
