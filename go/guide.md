@@ -124,3 +124,36 @@ By convention, formatting functions whose names end in f, such as
 log.Printf and fmt.Errorf, use the formatting rules of fmt.Printf, whereas those whose
 names end in ln follow Println, formatting their arguments as if by %v, followed by a
 newline.
+
+Go 25 keyswords:
+
+that may be used only where the syntax per mits; they
+can’t be used as names.
+
+```go
+break case chan const continue default defer else fallthrough for func go goto if import interface map package range return select struct switch type var
+```
+
+In addition, there are about three dozen predeclared names like int and true for built-in constants, types, and functions. These names are not reserved, so you may use them in declarations.
+
+```go
+// Constants:
+true false iota nil
+
+// Types
+int int8 int16 int32 int64
+uint uint8 uint16 uint32 uint64 uintptr
+float32 float64 complex128 complex64
+bool byte rune string error
+
+// Functions
+make len cap new append copy close delete
+complex real imag
+panic recover
+```
+
+If the name begins with an upper-case letter, it is exported, which means that it is visible and accessible outside of its own package and may be referred to by other parts of the program. Package names themselves are always in lower case.
+
+Stylistically, Go programmers use ‘‘camel case’’ when forming names by combining words; that is, interior capital letters are preferred over interior underscores.
+
+**The name of each package level entity is visible not only throughout the source file that contains its declaration, but throughout all the files of the package. By contrast, local declarations are visible only within the function in which they are declared and perhaps only within a small part of it.**
