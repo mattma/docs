@@ -81,44 +81,237 @@ Components are the new version of directives. A basic Component has two parts:
 
 Think of annotations as metadata added to your code. When we use @Component on the `HelloWorld` class, we are “decorating” the `HelloWorld` as a Component.
 
-## Common
+## Router
 
-1. NgFor
+map a URL to a state of the application. The router in Angular 2 has a simple goal: allowing to have meaningful URLs reflecting the state of our app, and for each URL to know which component should be initialized and inserted in the page.
 
-Use `NgFor` directive on this attribute. `*ngFor` is a for loop; the idea is that we’re creating a new DOM element for every item in a collection.
+To use the router. It is an optional module, that is thus not included in the core framework. So we have to add the `ROUTER_PROVIDERS` to our injector, usually via the bootstrap method, We also need to tell the router which component is the main one, by binding `ROUTER_PRIMARY_COMPONENT`.
 
-`#name of names` names is our array of names as specified on the `HelloWorld`
-object. `#name` is called a reference. When we say "#name of names" we’re saying loop over each element in names and assign each one to a variable called `name`
+```js
+bootstrap(PonyRacerApp, [
+  ROUTER_PROVIDERS,
+  provide(ROUTER_PRIMARY_COMPONENT, {useValue: PonyRacerApp})
+]);
+```
+
+#### RouteConfig
+
+Then we need to define the mapping between URLs and components. We can do this with a decorator named `@RouteConfig` exposed by the router module, usually on top of your other decorators on the main component, we must use a special tag in the template of the primary component: `<router-outlet>` to insert components into the page.
+
+```js
+@RouteConfig([
+  new Route({path: '/', component: HomeCmp, name: 'Home'}),
+  new Route({path: '/races', component: RacesCmp, name: 'Races'}),
+])
+@Component({
+  selector: 'ponyracer-app',
+  directives: [ROUTER_DIRECTIVES]
+...
+// access the hypothetical route parameters later on
+myFunction(routeParams: RouteParams) {
+  this.artistName = routeParams.get(‘name’);
+}
+```
+
+`@RouteConfig` decorator takes an array of objects, each one being a Route instance. A route configuration is usually a triplet of properties:
+• `path`: what URL will trigger the navigation
+• `component`: which component will be initialized and inserted
+• `name`: what name we will use to reference this route. The name must be in CamelCase, and will be used to invoke the route.
+
+#### Naviation
+
+`<a [router-link]=”[‘/Artist’, {name: artist.name}]”>See this artist</a>` navigate through our app with the RouterLink directive
+
+In a template, you can add a link with the directive `RouterLink` pointing to the route alias you want to go to. The `RouterLink` directive must receive an array of strings, representing the route alias and its params. ex: `<a href="" [routerLink]="['/Home']">Home</a>`. At runtime, the link `href` will be computed by the router and will point to `/`.
+
+The `RouterLink` directive also offers a few goodies, like the CSS class `router-link-active` which is automatically added if the link points to the current route.
 
 ## http
 
-The http service in Angular2 is using Observables, which is different from the promise based approach in Angular 1.x.
+use the classes from the `angular2/http` module. `Http` module allows to mock your backend server and return fake responses. `Http` module heavily uses the reactive programming paradigm using `Observables`, which is different from the promise based approach in Angular 1.x.
+
+#### Setup
+
+`Http` module offers a service called `Http` that you can inject in any constructor. As the service is coming from another module, you have to manually make it available to your component or service. The easiest way is to add the `HTTP_PROVIDERS` in the `bootstrap` method:
 
 ```js
-// note: need to update this formating
-import {Component, View} from 'angular2/core';
+bootstrap(PonyRacerApp, [HTTP_PROVIDERS]);
+```
+
+To access `Response` from `http` request:
+- `response.status` log status code. ex: 200
+- `response.headers` log response header info. ex: []
+- `response.text()` expect some text
+- `response.json()` expect a JSON object, the parsing being done for you
+
+```js
 import {Http, Response} from 'angular2/http'
 @Component({
-    selector: 'http'
-})
-@View({
-    templateUrl: './components/http/http.html'
+  selector: 'some-component'
 })
 export class HttpSample {
   result: Object;
-  constructor(http: Http) {
+  constructor(private http: Http) {
     // The friends array on the returned object is then bound to the view.
     this.result = {friends:[]};
-    http.get('./friends.json')
-      .map((res: Response) => res.json()).subscribe(
-        res => this.result = res,
-        error => this.error = error
+    http.get(`${baseUrl}/api/friends.json`)
+      .map((res: Response) => {
+        console.log(res.status); // logs 200
+        console.log(res.headers); // logs []
+        res.json().subscribe(
+          res => this.result = res,
+          error => this.error = error
+        }
       );
   }
 }
 ```
 
-Dependent calls
+By default, the Http service will do AJAX request using `XMLHttpRequest`.
+
+It offers several methods, matching the most common HTTP verbs:
+`get post put delete patch head`, All these methods are just syntactic sugar, and they all call the method `request` under the hood, and all these methods return an `Observable` object with benefits like cancel requests, to retry,
+to easily compose them, etc…
+
+Post ex: `http.post(`${baseUrl}/api/races`, newRace)`
+
+#### Transforming data
+
+As we are getting an `Observable` object as a response, you can easily transform the data. import the `map` operator for RxJS, angular does not import RxJS library, you have to explicitly import yourself.
+
+```js
+import 'rxjs/add/operator/map';
+...
+http.get(`${baseUrl}/api/races`)
+  // extract json body
+  .map(res => res.json())
+  // transform [races] => [names]
+  .map((races: Array<any>) => races.map(race => race.name))
+  .subscribe(names => {
+  console.log(names);
+  // logs the array of the race's names
+});
+```
+
+This kind of work will usually be done in a dedicated service. I tend to create a service where all the job is done. Then, my component just needs to subscribe to my service method, without knowing what’s going on under the hood.
+
+```js
+raceService.list()
+  // if the request fails, retry 3 times
+  .retry(3)
+  // transform [races] => [names]
+  .map(races => races.map(race => race.name))
+  // logs the array of the race's names
+  .subscribe(names =>  console.log(names));
+```
+
+#### Advanced options
+
+Tune your requests more finely. Every method takes a `RequestOptions` object as an optional parameter, where you can configure your request. A few options are really useful and you can override everything in the request. Some of these options have the exact same values as the ones offered by the [Fetch](https://github.com/github/fetch) API. The url option is pretty obvious and will override the URL of the request. The method option is the HTTP verb to use, like `RequestMethod.Get`. If you want to build a request manually,
+you can write:
+
+```js
+let options = new RequestOptions({method: RequestMethod.Get});
+http.request(`${baseUrl}/api/races/3`, options)
+  .subscribe(response => {
+  // will get the race with id 3
+  });
+```
+
+`search` represents the URL params to add to the URL. You specify them using the `URLSearchParams` class, and the complete URL will be constructed for you.
+
+```js
+let searchParams = new URLSearchParams();
+searchParams.set('sort', 'ascending');
+let options = new RequestOptions({search: searchParams});
+http.get(`${baseUrl}/api/races`, options)
+  .subscribe(response => {
+    // will return the races sorted
+    races = response.json();
+  });
+```
+
+`headers` option is often useful to add a few custom headers to your request. It happens to be necessary for some authentication techniques like JSON Web Token for example:
+
+```js
+let headers = new Headers();
+headers.append('Authorization', `Bearer ${token}`);
+http.get(`${baseUrl}/api/races`, new RequestOptions({headers}))
+  .subscribe(response => {
+    // will return the races visible for the authenticated user
+    races = response.json();
+  });
+```
+
+#### Jsonp
+
+To let you access their API without being blocked by the Same Origin Policy enforced by web browsers, some web services don’t use CORS, but use JSONP (JSON with Padding).
+
+The server will not return the JSON data directly, but wrap them in the function passed as a callback. The response comes back as a script, and scripts are not subject to the Same Origin Policy. Once loaded, you can access the JSON value contained in the response.
+
+In addition to the `Http` service, the Http module also provides a `Jsonp`service that makes it easy to interact with such APIs, and does all the dirty job for us. All you have to do is specify the URL of the service you want to call, and add `JSONP_CALLBACK` as the callback parameter value.
+
+```js
+// fetching all the public repos from our Github organization using JSONP
+jsonp.get('https://api.github.com/orgs/Ninja-Squad/repos?callback=JSONP_CALLBACK')
+  // extract json
+  .map(res => res.json())
+  // extract data
+  .map(res => res.data)
+  .subscribe(response => {
+    // will return the public repos of Ninja-Squad
+    repos = response;
+  });
+```
+
+#### Tests
+
+"fake" the HTTP call to return fake data. To do this, we can replace the dependency to the `Http` service with a fake implementation using a class provided by the framework called `MockBackend`:
+
+```js
+@Injectable()
+export class RaceService {
+  constructor(private http: Http) { }
+  list() {
+    return this.http.get('/api/races').map(res => res.json());
+  }
+}
+
+// To Test code above
+import {describe, it, expect, beforeEachProviders, inject} from 'angular2/testing';
+import {Http, BaseRequestOptions, Response, ResponseOptions} from 'angular2/http';
+import {MockBackend} from 'angular2/http/testing';
+import {provide} from 'angular2/core';
+import 'rxjs/add/operator/map';
+
+describe('RaceService', () => {
+  beforeEachProviders(() => [
+    MockBackend,
+    BaseRequestOptions,
+    provide(Http, {
+      useFactory: (backend, defaultOptions) => new Http(backend, defaultOptions),
+      deps: [MockBackend, BaseRequestOptions]
+    }),
+    RaceService
+  ]);
+
+  it('should return an Observable of 2 races',
+    inject([RaceService, MockBackend], (service, mockBackend) => {
+      // fake response
+      let hardcodedRaces = [new Race('London'), new Race('Lyon')];
+      let response = new Response(new ResponseOptions({body: hardcodedRaces}));
+      // return the response if we have a connection to the MockBackend
+      mockBackend.connections.subscribe(connection => connection.mockRespond(response));
+
+      service.list().subscribe(races => {
+        expect(races.length).toBe(2);
+      });
+    })
+  );
+});
+```
+
+#### Dependent calls
 
 ex: make an initial call to load a customer. The returned customer object contains a contract url that I will be using to load a contract for that particular customer.
 
@@ -131,7 +324,7 @@ this.http.get('./customer.json').map((res: Response) => {
   .subscribe(res => this.contract = res);
 ```
 
-Parallel requests
+#### Parallel requests
 
 list out the parallel calls and get the result back in an array. Below is an example of how to request a list of friends and a customer in parallel.
 
@@ -143,7 +336,7 @@ Observable.forkJoin(
 ).subscribe(res => this.combined = {friends:res[0].friends, customer:res[1]});
 ```
 
-Cancel Observables
+#### Cancel Observables
 
 Observables offer built in support for canceling subscriptions. Cancellation can be beneficial if you inadvertently made an http request and want to cancel the processing of the response.
 
@@ -159,7 +352,7 @@ getCapitol(country){
 }
 ```
 
-Simple Post Call
+#### Simple Post Call
 
 the syntax seems a bit more verbose than it needs to be. It also feels a bit unnecessary to do a manual JSON.stringify of the post payload.
 
@@ -173,7 +366,7 @@ this.http.post('http://www.syntaxsuccess.com/poc-post/',
     .subscribe((res:Person) => this.postResponse = res);
 ```
 
-Promises
+#### Promises
 
 Angular 2.0 has moved in the direction of Observables but it's still possible to work with promises if that is your preference.
 
@@ -496,7 +689,7 @@ contain keywords.
 <component (event)="doSomething()"></component>
 ```
 
-- Local Variable
+- Local Variable (#localVal: HTMLInputElement)
 
 Using the `#` syntax, we are creating a local variable name referencing the DOM object `HTMLInputElement`. This local variable can be used anywhere in the template. As it has a value property, we can display this property in an interpolated expression.
 
@@ -506,11 +699,26 @@ Using the `#` syntax, we are creating a local variable name referencing the DOM 
 <button (click)="name.focus()">Focus the input</button>
 ```
 
-- structural directive
+**Note**
+
+When using local template variables you can not use camel case names, e.g. `#myVar`. This would result in a variable named `myvar`. This is because the browser forces all attribute names in an element to lowercase. If you want your local templates variables to be more readable it is recommended to separate single words in the variable name by including dashes, e.g. `#my-var`. This would result in a variable named `my-var`.
+
+- structural directive (Built-in Angular 2 Components)
+
+Angular 2 comes bundled with a set of built-in components. ex: `NgIf` and `NgFor`.
 
 The syntax uses `*` to show it is a structural directive. The `ngIf` will now display or not the div whenever the value of races is changing.
 
+**NgIf**
+
+`NgIf` is used to hide or display an element based on the evaluation of an expression. If the result of the expression returns false, the element will be removed from the resulting DOM. ex: `<div *ng-if="var1 == 'A'">var1 is A</div>`
+
 **NgFor**
+
+Use `NgFor` directive on this attribute. `*ngFor` is a for loop; the idea is that we’re creating a new DOM element for every item in a collection.
+
+`#name of names` names is our array of names as specified on the `HelloWorld`
+object. `#name` is called a reference. When we say "#name of names" we’re saying loop over each element in names and assign each one to a variable called `name`
 
 ```html
 <!-- It is possible to declare another local variable bound to the index of the current element: -->
@@ -534,6 +742,8 @@ There are also other exported variables that can be useful:
 
 **NgSwitch**
 
+The NgSwitch consists of three directives: `NgSwitch`, `NgSwitchWhen`, `NgSwitchDefault`
+
 ```html
 <div [ngSwitch]="messageCount">
   <p *ngSwitchWhen="0">You have no message</p>
@@ -542,13 +752,92 @@ There are also other exported variables that can be useful:
 </div>
 ```
 
-- Other template directives
+**NgStyle**
 
-`NgStyle` act on the style of an element. ex: `<div [ngStyle]="{fontWeight: fontWeight, color: color}">I've got style</div>`
+act on the style of an element. ex: `<div [ngStyle]="{fontWeight: fontWeight, color: color}">I've got style</div>`
 
-`NgClass` allows to add or remove classes dynamically on an element. ex: `<div [ngClass]="{'awesome-div': isAnAwesomeDiv(), 'colored-div': isAColoredDiv()}">I've got style</div>`
+Another way to apply dynamic styling is to use the following syntax: `<div [style.background-color]="blue">Blue background</div>`
+
+**NgClass**
+
+allows to add or remove classes dynamically on an element. ex: `<div [ngClass]="{'awesome-div': isAnAwesomeDiv(), 'mystyle:': isActive}">I've got style</div>`. The component class (constructor) consists of the property `isActive` of type Boolean. use `.mystyle` css class to style element.
+
+**NgNonBindable**
+
+The `ngNonBindable` directive tells Angular not to compile or bind the contents of the current DOM element. This is useful if the element contains what appears to be Angular directives and bindings but which should be ignored by Angular. This could be the case if you have a site that displays snippets of code. ex: `<div ng-non-bindable>Ignored: {{1 + 2}}</div>` The result is that the {{1 + 2}} is not processed by Angular and the output text is Ignored: {{1 + 2}}.
 
 ## Directives
+
+In Angular 2 there are 3 types of directives: `Components` (These are directives with templates.), `structural directive` (There are directives the modify the DOM, ex: NgIf, NgFor), `Attribute directive` (These change behaviors of an element or of the other directives. ex: `<left-nav off-click></left-nav>`)
+
+- [Attribute directive example](https://angular.io/docs/ts/latest/guide/attribute-directives.html) and [Directive API](https://angular.io/docs/ts/latest/api/core/Directive-decorator.html)
+
+```js
+// off-click.directives.ts
+import {Directive, Host, Dependency, Input} from 'angular2/core';
+@Directive({
+  selector: '[offClick]',
+  inputs: ['offClick'],
+  // STOP THE PROPAGATION OF ANY CLICKS ON THE ELEMENT
+  // use `host` property in the directive decorator to call the click handler which is declared in directive class.
+  host: {
+    '(click)': 'onClick($event)',
+  }
+})
+export default class OffClickDirective {
+  @Input('offClick') offClickHandler; // RECEIVE HANDLER AS ATTRIBUTE VALUE
+
+  constructor() {
+  }
+
+  ngOnInit() {
+    // The attachment of handler to document is done inside a timeout so as to ensure it executes only after the element is visible. Timeout 0 pushes it to end of the Javascript execution queue
+    setTimeout(() => {
+      // ATTACH THE HANDLER TO DOCUMENT CLICK ONCE VIEW IS LOADED
+      document.addEventListener('click', this.offClickHandler);
+    }, 0);
+  }
+
+  ngOnDestroy() {
+    // remove this event listener in OnDestroy:
+    document.removeEventListener('click', this.offClickHandler);
+  }
+
+  onClick($event) {
+    $event.stopPropagation();
+  }
+}
+
+// Usage in the parent component
+import {Component} from 'angular2/core';
+import OffClickDirective from "./off-click.directive";
+
+@Component({
+  selector: 'app',
+  directives: [OffClickDirective],
+  template: `<div class="wrapper">
+    <button (click)="toggleDiv($event)">Toggle div</button>
+    <div *ngIf = "showDiv" [offClick]="clickedOutside">
+      Click outside me to hide me
+    </div>
+  </div>`
+})
+export class AppComponent {
+  showDiv:boolean = false;
+  constructor(){
+    this.clickedOutside = this.clickedOutside.bind(this);
+  }
+
+  toggleDiv($event){
+    $event.stopPropagation();
+    this.showDiv = !this.showDiv;
+  }
+
+  clickedOutside(){
+    this.showDiv = false;
+  }
+}
+```
 
 A directive is very much like a component, except it does not have a template. In fact, the Component class inherits from the Directive class in the framework. As for a component, your directive will be annotated with a decorator, but instead of `@Component`, it will be `@Directive`.
 
@@ -755,6 +1044,9 @@ To use a pipe, you have to add a pipe `|` character after your data, and then th
 
 To pass an argument to a pipe, you have to add a colon `:`, then the first argument, then possibly, another colon and the second argument etc…
 
+Syntax: `expression | [pipe][:pipe_parameter]`
+Multiple pipes: `expression | [pipe_1][:pipe_parameter] | [pipe_2][:pipe_parameter] | … | [pipe_-n][:pipe_parameter]`
+
 **json**
 
 handy when you are debugging your app is `JsonPipe`. Basically, this pipe applies `JSON.stringify()` to your data. ex: `<p>{{ arrayData | json }}</p>`. output `<p>[ { "name": "Rainbow Dash" }, { "name": "Pinkie Pie" } ]</p>`
@@ -770,7 +1062,7 @@ ex: `<p>{{ 'Ninja Squad' | uppercase }}</p>`
 
 **number**
 
-This pipe allows to format a number. It takes one parameter, a string, formatted as `{integerDigits}.{minFractionDigits}-{maxFractionDigits}`, but every part is optional. Each part indicates:
+This pipe allows to format a number. It takes one parameter, a string, formatted as `{integerDigits}.{minFractionDigits}-{maxFractionDigits}`, but every part is optional. Each part indicates: `expression | number[:digitInfo]`
 
 • how many numbers you want in the integer part
 • how many numbers you want at least in the decimal part
@@ -795,16 +1087,17 @@ This pipe allows to format a number. It takes one parameter, a string, formatted
 
 **percent**
 
-Based on the same principle as `number`, `percent` allows to display… a percentage!
+Based on the same principle as `number` with the same rule of parameters, `percent` allows to display a percentage! `expression | percent[:digitInfo]`
 
 ```html
 <p>{{ 0.8 | percent }}</p> <!-- will display '80%' -->
 <p>{{ 0.8 | percent:'.3' }}</p> <!-- will display '80.000%' -->
+<p>{{ 0.8 | percent:'3.1-1' }}</p>
 ```
 
 **currency**
 
-format an amount of money in the currency, require at least one parameter.
+format an amount of money in the currency, require at least one parameter. By using the CurrencyPipe you can format a number into a local currency string. `expression | currency[:currencyCode[:symbolDisplay[:digitInfo]]]`
 
 • the ISO string representing the currency ('EUR', 'USD'…)
 • optional, a boolean flag to say if you want to use the symbol ('€', '$') or the ISO string. By default, the flag is false, and the symbol will not be used.
@@ -860,7 +1153,7 @@ have a `transform()` method, the one doing the heavy lifting.
 import {PipeTransform, Pipe} from 'angular2/core';
 @Pipe({name: 'PipeNameHere'})
 export class FromNowPipe implements PipeTransform {
-  transform(value, args) {
+  transform(value, args:string[]): any {
     // do something here
   }
 }
@@ -1288,6 +1581,281 @@ describe('RaceCmp', () => {
 You can get the components inside your component with `componentViewChildren` or query them with `query()` and `queryAll()`. These methods take a predicate as argument that can be either `By.css` or `By.directive`. That’s what we do to get the ponies displayed, as they are instances of `PonyCmp`. Keep in
 mind that this is different from a DOM query using `querySelector()`: it will only find the elements handled by Angular, and will return a `ComponentFixture`, not a DOM element (so you’ll have access to the componentInstance of the result, for example).
 
+- Another example on Testing components
+
+```js
+import {Component, Inject, OnInit, OnDestroy} from "angular2/core";
+import {CounterActions} from "./counter-actions";
+import {CounterStore} from "./counter-store";
+
+@Component({
+  selector: "counter",
+  providers: [CounterActions, CounterStore],
+  templateUrl: "./src/counter/counter.html"
+})
+export class CounterPageComponent implements OnInit, OnDestroy {
+  counter:number = 0;
+
+  private counterActions;
+  private counterStore;
+
+  constructor(@Inject(CounterActions)counterActions:CounterActions,
+              @Inject(CounterStore)counterStore:CounterStore) {
+    this.counterActions = counterActions;
+    this.counterStore = counterStore;
+  }
+
+  ngOnInit() {
+    this.counter = this.counterStore.getCounter();
+    this.counterStore.subscribe(() => this.counter = this.counterStore.getCounter());
+  }
+
+  ngOnDestroy() {
+    this.counterStore.unsubscribe();
+  }
+
+  increment() {
+    this.counterActions.increment();
+  }
+
+  decrement() {
+    this.counterActions.decrement();
+  }
+
+  reset() {
+    this.counterActions.reset();
+  }
+}
+
+// Testing without angular2 injector involved
+import {BrowserDomAdapter} from "angular2/src/platform/browser/browser_adapter";
+BrowserDomAdapter.makeCurrent();
+
+import {
+  beforeEach,
+  it,
+  fdescribe,
+  expect,
+} from "angular2/testing";
+import {CounterPageComponent} from "../../src/counter/counter-page-component";
+import {CounterStore} from "../../src/counter/counter-store";
+import {CounterActions} from "../../src/counter/counter-actions";
+
+fdescribe("CounterPageComponent", () => {
+  let component:any;
+  let actions:any;
+  let store:any;
+
+  beforeEach(() => {
+    store = new CounterStore(); //or entirely overwritten stub if necessary
+    actions = new CounterActions(); //same here
+
+    spyOn(store, "subscribe");
+    spyOn(store, "getCounter").and.returnValue(33);
+    spyOn(actions, "increment");
+    spyOn(actions, "decrement");
+    spyOn(actions, "reset");
+
+    component = new CounterPageComponent(actions, store);
+  });
+
+  describe("ngOnInit()", () => {
+    beforeEach(() => {
+      component.ngOnInit();
+    });
+
+    it("should call getCounter() to get initial value", ()  => {
+      expect(store.getCounter.calls.count()).toEqual(1);
+    });
+
+    it("should subscribe to the counterStore", ()  => {
+      let subscribeCallback = store.subscribe.calls.argsFor(0)[0];
+      subscribeCallback();
+
+      expect(store.getCounter.calls.count()).toEqual(2);
+      expect(component.counter).toEqual(33);
+    });
+  });
+
+  describe("increment()", () => {
+    it("should proxy to counterActions.increment()", () => {
+      component.increment();
+      expect(actions.increment.calls.count()).toEqual(1);
+    });
+  });
+
+  describe("decrement()", () => {
+    it("should proxy to counterActions.decrement()", () => {
+      component.decrement();
+      expect(actions.decrement.calls.count()).toEqual(1);
+    });
+  });
+
+  describe("reset()", () => {
+    it("should proxy to counterActions.reset()", () => {
+      component.reset();
+      expect(actions.reset.calls.count()).toEqual(1);
+    });
+  });
+});
+```
+
+Testing with the injector but without involving the template
+
+```js
+import {BrowserDomAdapter} from "angular2/src/platform/browser/browser_adapter";
+BrowserDomAdapter.makeCurrent();
+
+import {
+  beforeEachProviders,
+  beforeEach,
+  inject,
+  it,
+  describe,
+  expect,
+  TestComponentBuilder
+} from "angular2/testing";
+import {provide} from "angular2/core";
+import {CounterPageComponent} from "../../src/counter/counter-page-component";
+import {CounterStore} from "../../src/counter/counter-store";
+import {CounterActions} from "../../src/counter/counter-actions";
+
+describe("CounterPageComponent", () => {
+  let component:any;
+  let actions:any;
+  let store:any;
+
+  beforeEachProviders(() => [CounterActions, CounterStore]);
+
+  beforeEach(inject([TestComponentBuilder], tcb => {
+    store = new CounterStore();
+    actions = new CounterActions();
+
+    spyOn(store, "subscribe");
+    spyOn(store, "getCounter").and.returnValue(33);
+    spyOn(actions, "increment");
+    spyOn(actions, "decrement");
+    spyOn(actions, "reset");
+
+    tcb.overrideTemplate(CounterPageComponent, "<sec></sec>")
+      .overrideProviders(CounterPageComponent, [
+        provide(CounterActions, {useValue: actions}),
+        provide(CounterStore, {useValue: store}) // or useFactory: () => {let counterStore = new CounterStore() //spy and return counterStore}
+      ])
+      .createAsync(CounterPageComponent)
+      .then(f => component = f.componentInstance);
+  }));
+
+  describe("ngOnInit()", () => {
+    beforeEach(() => {
+      component.ngOnInit();
+    });
+
+    it("should call getCounter() to get initial value", ()  => {
+      expect(store.getCounter.calls.count()).toEqual(1);
+    });
+
+    it("should subscribe to the counterStore", ()  => {
+      let subscribeCallback = store.subscribe.calls.argsFor(0)[0];
+      subscribeCallback();
+
+      expect(store.getCounter.calls.count()).toEqual(2);
+      expect(component.counter).toEqual(33);
+    });
+  });
+
+  describe("increment()", () => {
+    it("should proxy to counterActions.increment()", () => {
+      component.increment();
+      expect(actions.increment.calls.count()).toEqual(1);
+    });
+  });
+
+  describe("decrement()", () => {
+    it("should proxy to counterActions.decrement()", () => {
+      component.decrement();
+      expect(actions.decrement.calls.count()).toEqual(1);
+    });
+  });
+
+  describe("reset()", () => {
+    it("should proxy to counterActions.reset()", () => {
+      component.reset();
+      expect(actions.reset.calls.count()).toEqual(1);
+    });
+  });
+});
+```
+
+Testing with compiling the template
+
+```js
+import {BrowserDomAdapter} from "angular2/src/platform/browser/browser_adapter";
+BrowserDomAdapter.makeCurrent();
+
+import {
+  beforeEachProviders,
+  beforeEach,
+  injectAsync,
+  it,
+  fdescribe,
+  TestComponentBuilder
+} from "angular2/testing";
+import {CounterPageComponent} from "../../src/counter/counter-page-component";
+import {CounterStore} from "../../src/counter/counter-store";
+import {CounterActions} from "../../src/counter/counter-actions";
+import {provide} from "angular2/core";
+import {EventEmitter} from "angular2/core";
+
+fdescribe("CounterPageComponent", () => {
+  let component:any;
+  let actions:any;
+  let store:any;
+  let eventEmitter = new EventEmitter();
+
+  beforeEachProviders(() => [CounterActions, CounterStore]);
+
+  beforeEach(injectAsync([TestComponentBuilder], tcb => {
+    store = new CounterStore();
+    actions = new CounterActions();
+    let getCounterValue = 33;
+
+    spyOn(store, "subscribe").and.callFake(callback => {
+      eventEmitter.subscribe(() => callback());
+    });
+    spyOn(store, "getCounter").and.returnValue(getCounterValue++);
+    spyOn(actions, "increment");
+    spyOn(actions, "decrement");
+    spyOn(actions, "reset");
+
+    //or simply leave the template to get loaded, but having it here will save us an http call
+    return tcb.overrideTemplate(
+      CounterPageComponent,
+      `<p>Counter Value: {{counter}}<button (click)="increment()">+</button>
+        <button (click)="decrement()">-</button>
+        <button (click)="reset()">Reset</button>
+      </p>`
+      )
+      .overrideProviders(CounterPageComponent, [
+        provide(CounterActions, {useValue: actions}),
+        provide(CounterStore, {useValue: store}) // or useFactory: () => {let counterStore = new CounterStore() //spy and return counterStore}
+      ])
+      .createAsync(CounterPageComponent)
+      .then(f => {
+        f.detectChanges();
+        component = f.debugElement.nativeElement;
+      });
+    }));
+
+    describe("component initialized", () => {
+      it("should have the initial value displayed", ()  => {
+        expect(component.innerText).toContain("Counter Value: " + 33);
+      });
+    });
+  // etc with the remaining tests
+});
+```
+
 - Testing with fake templates, directives…
 
 When using less complex template for the test, `TestComponentBuilder` gives an `overrideTemplate()` method, to call before the `createAsync()` one.
@@ -1322,6 +1890,197 @@ describe('RaceCmp', () => {
 • `overrideDirective()` to replace a directive used in the template of a component
 • `overrideView()` where you can specify another pipe, style, etc…
 
+- Testing Pipes
+
+The test here can be simply done without involving the angular injector - which makes the code framework agnostic.
+
+```js
+import {Pipe} from "angular2/core";
+@Pipe({ name: "upperCase" })
+export class UpperCasePipe {
+  transform(value: string) {
+    return value.toUpperCase();
+  }
+}
+
+// Test here
+import {
+  it,
+  describe,
+  expect
+} from "angular2/testing";
+import {UpperCasePipe} from "../../src/home/upper-case-pipe";
+
+describe("UpperCasePipe", () => {
+  it("should convert the string passed to it to uppercase", () => {
+    let upperCasePipe = new UpperCasePipe();
+    expect(upperCasePipe.transform("angular2 ")).toEqual("ANGULAR2 ");
+  });
+});
+```
+
+or alternatively (not my preferred approach) the pipe can be tested within the context of a template - e.g. testing it's selector
+
+```js
+import {BrowserDomAdapter} from "angular2/src/platform/browser/browser_adapter";
+import {Component} from "angular2/core";
+BrowserDomAdapter.makeCurrent();
+import {
+  it,
+  injectAsync,
+  fdescribe,
+  expect,
+  TestComponentBuilder
+} from "angular2/testing";
+import {UpperCasePipe} from "../../src/home/upper-case-pipe";
+
+@Component({
+  selector: "home",
+  pipes: <any>[UpperCasePipe],
+  template: "<h3>{{message|upperCase}}</h3>"
+})
+class TestComponent {
+  message = "Hello";
+}
+fdescribe("UpperCasePipe - test the injector selector", () => {
+  it("should wrap content", injectAsync([TestComponentBuilder], tcb => {
+    return tcb.createAsync(TestComponent).then(fixture => {
+      fixture.detectChanges();
+      let compiled = fixture.debugElement.nativeElement;
+      expect(compiled.innerText).toContain("HELLO");
+    });
+  }));
+});
+```
+
+- Testing Services
+
+```js
+import dispatcher from "../dispatcher";
+import {Http} from "angular2/http";
+import {Inject} from "angular2/core";
+
+export const FETCHED_DATA = "FETCHED_DATA";
+
+export class HomePageActions {
+  http: Http;
+  constructor(@Inject(Http) http: Http) {
+    this.http = http;
+  }
+
+  initializeData() {
+    this.http.get("api-mock/colors.json").subscribe(data => {
+      dispatcher.dispatch({
+        type: FETCHED_DATA, data: data.json()
+      });
+
+      setTimeout(() => {
+          dispatcher.dispatch({
+            type: FETCHED_DATA, data: data.json()
+          });
+        }, 3000
+      );
+    });
+  }
+}
+
+// the simplest test with stubbing Http with another class to match the same name and methods used in the class under test
+import {BrowserDomAdapter} from "angular2/src/platform/browser/browser_adapter";
+BrowserDomAdapter.makeCurrent();
+
+import {
+  beforeEach,
+  it,
+  fdescribe,
+  expect
+} from "angular2/testing";
+import dispatcher from "./../../src/dispatcher";
+import {HomePageActions} from "../../src/home/home-page-actions";
+
+import {Observable} from "rxjs/Rx";
+import {ResponseOptions} from "angular2/src/http/base_response_options";
+import {Response} from "angular2/src/http/static_response";
+class Http {
+  get() {
+    return Observable.from([
+      new Response(new ResponseOptions({body: {colors: "red"}}))
+    ]);
+  }
+}
+
+let actions: HomePageActions;
+let http: Http = new Http();
+
+fdescribe("HomePageActions", () => {
+  beforeEach(() => {
+    spyOn(dispatcher, "dispatch");
+    actions = new HomePageActions(http);
+  });
+
+  describe("initializeDatar()", () => {
+    it("should call dispatcher.dispatch()", () => {
+      actions.initializeData();
+      expect((<any>dispatcher.dispatch).calls.argsFor(0)).toEqual([
+        Object({
+          type: "FETCHED_DATA", data: Object({colors: "red"})
+        })
+      ]);
+    });
+  });
+});
+```
+
+An alternative way of doing it - by using the angular2 injector instead and spy on the methods used within the class under test.
+
+```js
+import {BrowserDomAdapter} from "angular2/src/platform/browser/browser_adapter";
+BrowserDomAdapter.makeCurrent();
+
+import {
+  beforeEachProviders,
+  beforeEach,
+  inject,
+  it,
+  describe,
+  expect
+} from "angular2/testing";
+
+import dispatcher from "./../../src/dispatcher";
+import {HomePageActions} from "../../src/home/home-page-actions";
+import {Http, HTTP_PROVIDERS, Response, ResponseOptions} from "angular2/http";
+
+import {Observable} from "rxjs/Rx";
+
+let actions:HomePageActions;
+let http:Http;
+
+describe("HomePageActions", () => {
+  beforeEachProviders(() => [Http, HTTP_PROVIDERS]);
+
+  beforeEach(inject([Http], _ => {
+    http = _;
+    spyOn(dispatcher, "dispatch");
+
+    spyOn(http, "get").and.returnValue(Observable.from([
+      new Response(new ResponseOptions({body: {colors: "red"}}))
+    ]));
+    actions = new HomePageActions(http);
+  }));
+
+  describe("initializeData()", () => {
+    it("should call dispatcher.dispatch()", () => {
+      actions.initializeData();
+
+      expect((<any>dispatcher.dispatch).calls.argsFor(0)).toEqual([
+        Object({
+          type: "FETCHED_DATA", data: Object({colors: "red"})
+        })
+      ]);
+    });
+  });
+});
+```
+
 #### end-to-end tests (e2e)
 
 An end-to-end test consists in really launching your app in a browser and emulating a user interacting with it (clicking on buttons, filling forms, etc…). They have the advantage of really testing the application in a whole.
@@ -1344,6 +2103,564 @@ describe('Home', () => {
 Protractor gives us a browser object, with a few utility methods like `get()`to go to a page. Then you have `element.all()` to select all the elements matching a predicate. This predicate often relies on `by` and its various methods (`by.css()` to do a CSS query, `by.id()` to retrieve an element by id, etc…). `element.all()` will return a promise, with a special method `count()`used in the test above.
 
 `$('h1')` is a shortcut, equivalent of writing `element(by.css('h1'))`. It will fetch the first element matching the CSS query. You can use several methods on the promise returned by `$()`, like `getText()` and `getAttribute()` to retrieve information, or methods like `click()` and `sendKeys()` to act on this element.
+
+## Forms
+
+Angular 2 offers two ways to build a form:
+
+1. one by setting up everything in the template. But, it is quickly verbose when we have several fields, forces us to have custom directives for the validation and is harder to test. This way of doing things is useful for very simple forms, with just one field for example.
+
+2. one by setting up almost everything in the component. This way allows an easier setup for validation and testing, with several levels of groups if you need them. It is your weapon of choice for building complex forms. You can even react on changes on a group, or on a field.
+
+3. `ngModel` gives you two-way data-binding if you need it. You can use it with both the template-driven forms and the model-driven ones.
+
+4. `ng-no-form` attribute can have a form NOT transformed into its superpowered Angular 2 version.
+
+`NgForm` directive that transforms the form element into its powerful Angular 2 version. These directives are included in the `PLATFORM_DIRECTIVES`.
+
+`ngSubmit` is emitted by the form directive when submit is triggered. ex: `<form (ngSubmit)="register()"`
+
+`NgControl` and `NgForm` directives. The `NgControl` directive can only be applied to input controls within a <form>. In order to ensure that for all input controls corresponding Control objects are created and assigned to the form we attach the `NgControl` directive to every input element.
+
+#### Control
+
+To build a form in our component code, we need some abstractions. A form field, like an input or a select, is represented by a `Control` in Angular 2. It is the smallest part of a form, and it encapsulates the state of the field and its value.
+
+A Control has several attributes:
+
+• `valid`: if the field is valid, regarding the requirements and validations applied on it.
+• `errors`: an object containing the field errors
+• `dirty`: false until the user has modified its value.
+• `pristine`: the opposite of dirty.
+• `touched`: false until the user has entered it.
+• `untouched`: the opposite of touched.
+• `value`: the value of the field.
+• `status`: either VALID or INVALID
+• `valueChanges`: an Observable emitting every time there is a change on the field
+• `hasError()` method to check if the control has a specific error.
+
+```js
+let password = new Control();
+console.log(password.dirty); // false until the user enters a value
+console.log(password.value); // null until the user enters a value
+console.log(password.hasError('required')); // false
+
+// Note that you can pass an argument to the constructor, and that this argument will be the value.
+let password = new Control('Cédric');
+console.log(password.value); // logs "Cédric"
+```
+
+#### ControlGroup
+
+These controls (describe above) can be grouped in a `ControlGroup` to represent a part of the form and have dedicated validation rules. The form itself is a group.
+
+A ControlGroup has the same properties than a Control, with a few differences:
+
+• `valid`: if all fields are valid, then the group is valid.
+• `errors`: an object containing the group errors or `null` if the group is valid. Each error is a key, whose value is an array containing every control affected by this error.
+• `dirty`: false until one control gets dirty too.
+• `pristine`: the opposite of dirty.
+• `touched`: false until one control gets touched too.
+• `untouched`: the opposite of touched.
+• `value`: the value of the group. To be more accurate, it’s an object with key/values representing the controls and their values.
+• `status`: either VALID or INVALID
+• `valueChanges`: an Observable emitting every time there is a change on the group
+• `hasError()` method like `Control` method
+• `find()` retrieve a control in a group
+
+```js
+let form = new ControlGroup({
+  username: new Control('Cédric'),
+  password: new Control()
+});
+console.log(form.dirty); // logs false until the user enters a value
+console.log(form.value); // logs Object {username: "Cédric", password: null}
+console.log(form.find('username')); // logs the Control
+```
+
+#### FormBuilder
+
+With these basic elements we can build a form in our component. But instead of doing `new Control()` or `new ControlGroup()`, we will use a helper class, `FormBuilder`.
+
+The `FormBuilder` is a helper class, with a handful of methods to create controls and control groups. Let’s start simple, and create a small form with two controls, a username and a password.
+
+```js
+import {FormBuilder, ControlGroup}} from 'angular2/common';
+@Component({
+  ...
+  viewProviders: [FormBuilder],
+})
+export class RegisterFormCmp {
+  userForm: ControlGroup;
+
+  constructor(fb: FormBuilder) {
+    // created a form with two controls
+    // each control is created using the helper method `control()`
+    // same effect as calling the `new Control('')` constructor
+    // string represents the initial value you want to display in form.
+    this.userForm = fb.group({
+      username: fb.control(''),
+      password: fb.control('')
+    });
+  }
+  register() {
+    // we will have to handle the submission
+    console.log(this.userForm.value);
+  }
+}
+```
+
+The form needs to be bound to our `userForm` object, thanks to the `ngFormModel` directive. Each input field is bound to a control, thanks to the `ngControl`
+directive. Each input receives the `ngControl` directive with a string literal representing the control it is bound to. If you specify a name that does not exist, you will have an error.
+
+```js
+<form (ngSubmit)="register()" [ngFormModel]="userForm">
+  <label>Username</label><input ngControl="username">
+  <label>Password</label><input type="password" ngControl="password">
+  <button type="submit">Register</button>
+</form>
+```
+
+**Note** If you have a single control in your form, and not a control group, you can use `ngFormControl` on your field instead of using `ngControl` and wrapping it in a `ngFormModel`.
+
+```js
+import {Component} from 'angular2/core';
+import {FormBuilder, ControlGroup, Control} from 'angular2/common';
+@Component({
+  selector: 'register-form-cmp',
+  viewProviders: [FormBuilder],
+  templateUrl: './register_form_cmp.html'
+})
+export class RegisterFormCmp {
+  username: Control;
+  password: Control;
+  userForm: ControlGroup;
+
+  constructor(fb: FormBuilder) {
+    this.username = fb.control('', Validators.required)
+    this.password = fb.control('', Validators.required)
+    this.userForm = fb.group({
+      username: this.username,
+      password: this.password
+    });
+  }
+  reset() {
+    this.username.updateValue('');
+    this.password.updateValue('');
+  }
+  register() {
+    console.log(this.userForm.value);
+  }
+}
+```
+
+Template drive form. define a local variable, `userForm`, referencing the form. We can do this because the form directive exports an object representing the form, with the same methods as the `ControlGroup`.
+
+```html
+<form (ngSubmit)="register(userForm.value)" #userForm="ngForm">
+  <label>Username</label><input ngControl="username">
+  <label>Password</label><input type="password" ngControl="password">
+  <button type="submit">Register</button>
+</form>
+```
+
+#### Two way data binding
+
+`ngModel` directive is what you know as 'two-way data-binding'. The `NgModel`directive updates the related model `user.username` every time there is a change in the input, hence the `[ngModel]="user.username"` part. And it fires an event called `ngModel` every time the model is updated, where the event is the new value, hence the `(ngModel)="user.username = $event"` part.
+
+```html
+<input [(ngModel)]="user.username">
+<!-- Equal to -->
+<input [ngModel]="user.username" (ngModelChange)="user.username = $event">
+```
+
+#### Form validation
+
+`Validator` returns a map of `errors` or `null` if it detects no error.
+
+A few validators are provided by the framework:
+• `Validators.required` to ensure that a control is not empty
+• `Validators.minLength(n)` to ensure that the value entered has at least n characters
+• `Validators.maxLength(n)` to ensure that the value entered has at most n characters
+
+Validators are composable, using `Validators.compose()`, and can be applied on a `Control` or on a `ControlGroup`.
+
+```js
+import {FormBuilder, ControlGroup, Validators} from 'angular2/common';
+@Component({
+  viewProviders: [FormBuilder],
+})
+export class RegisterFormCmp {
+  userForm: ControlGroup;
+  constructor(fb: FormBuilder) {
+    this.userForm = fb.group({
+      username: fb.control('', Validators.compose([Validators.required, Validators.minLength(3)])),
+      password: fb.control('', Validators.required)
+    });
+  }
+}
+```
+
+In template driven approach. add the `required` attribute to the inputs. `required` is a provided directive, and will automatically add the
+validator to this field. Same thing with `minlength` and `maxlength`.
+
+```html
+<form (ngSubmit)="register(userForm.value)" #userForm="ngForm">
+  <label>Username</label><input ngControl="username" required minlength="3">
+  <label>Password</label><input type="password" ngControl="password" required>
+  <button type="submit">Register</button>
+</form>
+```
+
+#### Creating a custom validator
+
+create a method that takes a `Control`, tests its `value` and returns an object with the `errors` or `null`, if the validation passes.
+
+To use a validator in a model-driven form, We need to add a new control in our form with this validator, using the `FormBuilder`:  ex: `isOldEnough`
+
+```js
+import {Component} from 'angular2/core';
+import {FormBuilder, Control, ControlGroup, Validators} from 'angular2/common';
+@Component({
+  selector: 'register-form-cmp',
+  viewProviders: [FormBuilder],
+  templateUrl: './register_form_cmp.html'
+})
+export class RegisterFormCmp {
+  username: Control;
+  password: Control;
+  birthdate: Control;
+  userForm: ControlGroup;
+  constructor(fb: FormBuilder) {
+    this.username = fb.control('', Validators.required);
+    this.password = fb.control('', Validators.required);
+    this.birthdate = fb.control('', Validators.compose([Validators.required, this.isOldEnough]));
+    this.userForm = fb.group({
+      username: this.username,
+      password: this.password,
+      birthdate: this.birthdate
+    });
+  }
+  register() {
+    console.log(this.userForm.value);
+  }
+  // this method could be in another class if you wanted (required is a static method for example). Used in `Validators.compose([Validators.required, this.isOldEnough]))`
+  isOldEnough(control: Control) {
+    // if there is no value
+    if (!control.value) {
+      return null;
+    }
+    let birthDatePlus18 = new Date(control.value);
+    birthDatePlus18.setFullYear(birthDatePlus18.getFullYear() + 18);
+    return birthDatePlus18 < new Date() ? null : {tooYoung: true};
+  }
+}
+
+// To use it, add a field and display an error
+<label>Birth date</label><input type="date" ngControl="birthdate">
+<div *ngIf="birthdate.dirty">
+<div *ngIf="birthdate.hasError('required')">Birth date is required</div>
+<div *ngIf="birthdate.hasError('tooYoung')">way too young to be betting on pony races</div>
+```
+
+- Using a validator in a template-driven form.
+
+To do this, we are going to build a directive that we will apply on the input. Create this new directive. We start by creating a class, with the `@Directive` decorator, and a selector on an attribute that we will name `is-old-enough`. The class has a method `validate`.
+
+Use DI to tell the input that this directive is a validator. When it is instantiated, a form control directive is looking for all the directives of type `NG_VALIDATORS`. So we need to bind our directive as a `NG_VALIDATORS`, using the `multi` option. This option is the only way to bind several values to the same token.
+
+```js
+import {Directive, provide} from 'angular2/core';
+import {Control, NG_VALIDATORS, Validator} from 'angular2/common';
+@Directive({
+  selector: '[isOldEnough]',
+  bindings: [provide(NG_VALIDATORS, {useExisting: IsOldEnoughValidator, multi: true})]
+})
+export class IsOldEnoughValidator implements Validator {
+  validate(control: Control): any {
+    let birthDatePlus18 = new Date(control.value);
+    birthDatePlus18.setFullYear(birthDatePlus18.getFullYear() + 18);
+    return birthDatePlus18 < new Date() ? null : {tooYoung: true};
+  }
+}
+
+// Now if we add the directive on the input the validation will be executed:
+<label>Birth date</label><input type="date" ngControl="birthdate" required
+isOldEnough #birthdate="ngForm">
+<div *ngIf="birthdate.control?.dirty">
+<div *ngIf="birthdate.control?.hasError('required')">Birth date is required</div>
+<div *ngIf="birthdate.control?.hasError('tooYoung')">Way too young to be
+betting on pony races</div>
+```
+
+#### Errors and submission
+
+use the `ControlGroup` variable: `userForm`. This variable gives us a complete view of the form and field states and errors. link `disabled` to the `valid` property of `userForm`. Now we can only submit when all controls are valid.
+
+```html
+<form (ngSubmit)="register()" [ngFormModel]="userForm">
+  <label>Username</label><input ngControl="username">
+  <!-- The errors are now displayed if the fields are empty, use `.dirty` for initial empty value state -->
+  <!-- `username.dirty && username.hasError('required')` when `this.username` is defined on the `constructor`.  ex: `this.username = fb.control('', Validators.required);` see full example above-->
+  <div *ngIf="userForm.find('username').dirty &&
+  userForm.find('username').hasError('required')">Username is required
+</div>
+  <label>Password</label><input type="password" ngControl="password">
+  <div *ngIf="userForm.find('password').dirty &&
+  userForm.find('password').hasError('required')"> Password is required
+  </div>
+  <!-- disable a button using the `disabled` property -->
+  <button type="submit" [disabled]="!userForm.valid">Register</button>
+</form>
+```
+
+In template driven form,
+
+```html
+<form (ngSubmit)="register(userForm.value)" #userForm="ngForm">
+<label>Username</label><input ngControl="username" required #username="ngForm">
+<div *ngIf="username.control?.dirty && username.control?.hasError('required')"
+>Username is required</div>
+<label>Password</label><input type="password" ngControl="password" required #
+password="ngForm">
+<div *ngIf="password.control?.dirty && password.control?.hasError('required')"
+>Password is required</div>
+<button type="submit" [disabled]="!userForm.valid">Register</button>
+</form>
+```
+
+- Create a Display Error component
+
+```js
+@Component({
+  selector: 'display-error',
+  template: `<div *ngIf="isDisplayed()"><ng-content></ng-content></div>`
+})
+export class DisplayErrorCmp implements OnInit {
+  @Input('control') controlName: string;
+  @Input() error: string;
+  control: AbstractControl;
+  // we inject the form model look into the host element to find the NgFormModel directive and inject it
+  constructor(@Host() private formModel: NgFormModel) {
+  }
+  // we then find the control
+  ngOnInit() {
+    this.control = this.formModel.form.find(this.controlName);
+  }
+  // the div in the template will only be added if
+  // the control is dirty and has the specified error
+  isDisplayed() {
+    return this.control.dirty && this.control.hasError(this.error);
+  }
+}
+
+// usage
+<label>Username</label><input ngControl="username">
+<display-error control="username" error="required">Username is required</displayerror>
+```
+
+#### Form Styles
+
+Angular2 auto add and remove CSS classes on each field on the form.
+
+A field will have the class `ng-invalid` if one of its validators fails
+`ng-valid` if all the validators succeed.
+`ng-invalid`: Control’s value is not valid
+`ng-dirty` present if the user has changed the value.
+`ng-pristine` present if the user never changed the value
+`ng-touched` present if the user enters and leaves the field at least once (even if she/he did not changed the value).
+`ng-untouched` is opposite to `ng-touched`
+
+`ng-pristine nguntouched ng-invalid` When you display a form for the first time
+`ng-pristine ngtouched ng-invalid` when enters and leaves the field
+`ng-dirty ngtouched ng-invalid` when changes the value still invalid
+`ng-dirty ng-touched ng-valid` when the value is valid
+
+
+#### Grouping fields
+
+We can declare groups inside a group. That’s very useful if you want to validate a group of fields together like an address, or, like in our example, if you want to check if the password and its confirmation match.
+
+```js
+import {Component} from 'angular2/core';
+import {FormBuilder, Control, ControlGroup, Validators} from 'angular2/common';
+@Component({
+  selector: 'register-form-cmp',
+  viewProviders: [FormBuilder],
+  templateUrl: './register_form_cmp.html'
+})
+export class RegisterFormCmp {
+  passwordForm: ControlGroup;
+  userForm: ControlGroup;
+  username: Control;
+  password: Control;
+  confirm: Control;
+
+  constructor(fb: FormBuilder) {
+    this.username = fb.control('', Validators.required);
+    this.password = fb.control('', Validators.required);
+    this.confirm = fb.control('', Validators.required);
+    // create a new group, passwordForm with the two fields and add it in the group userForm
+    // added a validator on the group, passwordMatch, that will be called every time one of the fields changes
+    this.passwordForm = fb.group({password: this.password, confirm: this.confirm}, {validator: this.passwordMatch});
+    this.userForm = fb.group({username: this.username, passwordForm: this.passwordForm});
+  }
+
+  register() {
+    console.log(this.userForm.value);
+  }
+  passwordMatch(control: {controls: {password: Control, confirm: Control}}) {
+    let password = control.controls.password.value;
+    let confirm = control.controls.confirm.value;
+    return password !== confirm ? {matchingError: true} : null;
+  }
+}
+
+// update the template to reflect the new form, using the `ngControlGroup` directive
+<form (ngSubmit)="register()" [ngFormModel]="userForm">
+  <div>
+    <label>Username</label><input ngControl="username">
+    <div *ngIf="username.dirty && username.hasError('required')">Username is
+    required</div>
+  </div>
+  <div ngControlGroup="passwordForm" #passwordForm="ngForm">
+    <div>
+      <label>Password</label>
+      <input type="password" ngControl="password">
+      <div *ngIf="password.dirty && password.hasError('required')">
+        Password is required
+      </div>
+    </div>
+    <div>
+      <label>Confirm password</label>
+      <input type="password" ngControl="confirm">
+      <div *ngIf="confirm.dirty && confirm.hasError('required')">
+        Confirm your password
+      </div>
+    </div>
+    <div *ngIf="passwordForm.dirty && passwordForm.control.hasError('matchingError')">
+      Your password does not match
+    </div>
+  </div>
+  <button type="submit" [disabled]="!userForm.valid">Register</button>
+</form>
+```
+
+#### Reacting on changes
+
+using the observable `valueChanges`. ex: password field to display a strength indicator, compute the strength at every change of the password value:
+
+```js
+import {FormBuilder, Control, ControlGroup, Validators} from 'angular2/common';
+@Component({
+bindings: [FormBuilder],
+})
+export class RegisterFormCmp {
+  userForm: ControlGroup;
+  username: Control;
+  password: Control;
+  passwordStrength: number = 0;
+
+  constructor(fb: FormBuilder) {
+    this.username = fb.control('', Validators.required);
+    this.password = fb.control('', Validators.required);
+    this.userForm = fb.group({
+      username: this.username,
+      password: this.password
+    });
+    // we subscribe to every password change
+    this.password.valueChanges.subscribe((change) => {
+      this.passwordStrength = change.length;
+    });
+  }
+}
+
+// Now we have a passwordStrength field in our component instance, that we can display to our user:
+<form (ngSubmit)="register()" [ngFormModel]="userForm">
+  <label>Password</label><input type="password" ngControl="password">
+  <div>Strength: {{passwordStrength}}</div>
+  <div *ngIf="password.dirty && password.hasError('required')">Password is
+   required</div>
+</form>
+```
+
+## Events
+
+It contains "User input events" and "Lifecycle events".
+
+#### User input events
+
+They are closely related to [DOM events](https://developer.mozilla.org/en-US/docs/Web/Events) which are raised by user actions like clicks on buttons or typing on keyboard. By using event binding you can directly listen to DOM events in your Angular 2 application.
+
+Syntax: `(Name_of_DOM_event)="[Template expression]"`
+
+- `$event` Object (event: Event)
+
+Use `$event` object to retrieve additional event information. `KeyboardEvent` may provide more info like
+
+```html
+<tr *ng-for="#keyUpEvent of keyUpEvents, #i=index">
+  <td>{{i+1}}</td>
+  <td>{{keyUpEvent.type}}</td>
+  <td>{{keyUpEvent.timeStamp}}</td>
+  <td>{{keyUpEvent.target}}</td>
+  <td>{{keyUpEvent.code}}</td>
+  <td>{{keyUpEvent.key}}</td>
+  <td>{{keyUpEvent.shiftKey}}</td>
+  <td>{{keyUpEvent.ctrlKey}}</td>
+  <td>{{keyUpEvent.altKey}}</td>
+</tr>
+```
+
+- Event filtering
+
+`<input #a (keyup.enter)="onKey(a.value)">` filter keyboard event and only listen to a certain key. here is "enter"
+
+#### LifeCycle Events
+
+- Constructor
+
+The constructor of the component class is called before any other component lifecycle hook. If your component is based on any dependencies the constructor is the right place to inject those dependencies.
+
+- ngOnInit
+
+It is called right after the constructor and before the `ngOnChange` is triggered for the first time. It can be used to initialize input properties and perform other initialization tasks.
+
+- ngOnChanges
+
+It is executed every time the value of an input property changes. The
+method takes one parameter which is an object describing the changes in detail. `{"value1":{"previousValue":"","currentValue":"Test"}}`
+In this case one change to the input property value1 is reported. The value of this property has been changed from an empty string to the string “Test”.
+
+- ngDoCheck
+
+It is triggered every time the input properties of a component or a directive are checked. You can use this lifecycle hook to extend the check with your own custom check logic.
+
+- ngAfterContentInit
+
+It is called after `ngOnInit` when the component’s or directive’s
+content has been initialized.
+
+- ngAfterContentChecked
+
+Called after every check of the component’s or directive’s content.
+
+- ngAfterViewInit
+
+Called after `ngAfterContentInit` when the component’s view has been initialized. Applies to components only.
+
+- ngAfterViewChecked
+
+Called after every check of the component’s view. Applies to components only.
+
+- ngOnDestroy
+
+called in a component’s lifecycle, just before the instance of the component
+is finally destroyed.
+
+## Typescript
+
+#### [Compiler Options](https://github.com/Microsoft/TypeScript/wiki/Compiler-Options)
 
 ## Notes
 
