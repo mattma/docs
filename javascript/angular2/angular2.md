@@ -514,6 +514,9 @@ bootstrap(PonyRacerApp, [
 ])
 ```
 
+Service is a concept to share data between components.
+
+
 #### Other types of providers
 
 **useFactory**
