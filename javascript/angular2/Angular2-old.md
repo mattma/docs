@@ -25,7 +25,7 @@ a lightweight, template-less component. I needed to attach some behavior to a DO
 
 class RedDirective {
   constructor(el: ElementRef) {
-    el.domElement.style.color = "red";
+	el.domElement.style.color = "red";
   }
 }
 ```
@@ -86,4 +86,30 @@ In TypeScript we apply that function to the class as a decorator by prefixing it
   selector: 'my-app',
   template: '<h1>My First Angular 2 App</h1>'
 })
+```
+
+
+#### Events and Refs
+
+Give an pound reference to the input field, access its raw DOM by its reference.
+
+Using raw event name (ex: mouseover) wrapped in `()`, or use `on-click=""` syntax to bind the event listener
+
+```html
+<input type="text" #myInput>
+<button (click)="onClick($event, myInput)">submit</button>
+```
+
+#### Using @Inject decorator
+
+Instead of writing type of `todoService: TodoService` on the right side, can inject the type using `@Inject` decorator to pass Type or something else. The reason that you do this, because you do not want to use Typescript or inject anything other than a type like symbol.
+
+```js
+import {Inject} from 'angular2/core';
+
+export class Anything {
+  constructor(@Inject('whatever') public todoService) {
+
+  }
+}
 ```
