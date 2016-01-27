@@ -89,3 +89,164 @@ we allow mutable state, but in a very scoped form
 
 **Dumb components** receives its data from the smart component and displays it with little to no added logic. It makes them reusable and easier to test.
 
+## Multi Providers
+
+DI system has a feature called “Multi Providers” that hook into certain operations and plug in custom functionality we might need in our application use case.
+
+- What is a provider?
+
+A provider is an instruction that describes how an object for a certain token is created.
+
+```js
+import {DataService} from './dataService';
+
+@Component(...)
+class AppComponent {
+  // import the type of the dependency, annotate our dependency argument with it in our component’s constructor
+  // Angular knows how to create and inject an object of type DataService, if we configure a provider for it.
+  constructor(dataService: DataService) {
+    // dataService instanceof DataService === true
+  }
+}
+```
+
+Setup can happen either in the bootstrapping process of our app, or in the component itself. Now, whenever we ask for a dependency of type DataService, Angular knows how to create an object for it.
+
+```js
+// at bootstrap
+bootstrap(AppComponent, [
+  provide(DataService, {useClass: DataService})
+]);
+
+// or in component
+@Component({
+  ...
+  providers: [
+    provide(DataService, {useClass: DataService})
+    // if the instruction is useClass and the value of it the same as the token, can use ShortHand
+    // providers: [DataService]
+  ]
+})
+class AppComponent { }
+```
+
+- Multi providers
+
+basically provide multiple dependencies for a single token. A token can be either a string or a type. Using `multi: true` tells Angular that the provider is a multi provider.
+
+```js
+const SOME_TOKEN: OpaqueToken = new OpaqueToken('SomeToken');
+
+var injector = Injector.resolveAndCreate([
+  provide(SOME_TOKEN, {useValue: 'dependency one', multi: true}),
+  provide(SOME_TOKEN, {useValue: 'dependency two', multi: true})
+]);
+
+var dependencies = injector.get(SOME_TOKEN);
+// dependencies == ['dependency one', 'dependency two']
+```
+
+Usually, when we register multiple providers with the same token, the last one wins. Not any more with `multi`. This means, with multi providers we can basically extend the thing that is being injected for a particular token. Angular uses this mechanism to provide pluggable hooks.
+
+All directives provided by the platform (now called `PLATFORM_DIRECTIVES`, is a mutli provider which can add custom user directives) are available in our component’s template right away.
+
+```js
+@Directive(...)
+class Draggable { }
+
+@Component(...)
+class RootCmp { }
+
+// at bootstrap. Draggable directive auto availabe for entire application
+bootstrap(RooCmp, [
+  provide(PLATFORM_DIRECTIVES, {useValue: Draggable, multi: true})
+]);
+```
+
+- Other Multi Providers
+
+The Angular platform comes with multi providers that we can extend with our custom code
+
+`PLATFORM_PIPES` - Basically same as `PLATFORM_DIRECTIVES` just for pipes
+`NG_VALIDATORS` - Interface that can be implemented by classes that can act as validators
+`PLATFORM_INITIALIZER` - Can be used to perform initialization work
+
+## Angular2 best
+
+`Components` - Components are the new building blocks when creating applications. Almost everything is a component, even our application itself.
+
+`Inputs/Outputs` - Components communicate via inputs and outputs, if they run in the Browser, these are element properties and events.
+
+`Content Projection` - Basically the new transclusion, but more aligned with the Web Components standard.
+
+`Dependency Injection` - Instead of having a single injector for our entire application, in Angular 2 each component comes with its own injector.
+
+## Injecting services in services
+
+DI takes advantage of metadata on our code, added through annotations, to get all the information it needs so it can resolve dependencies for us.
+
+TypeScript only generates metadata for a class, method, property or method/constructor parameter when a decorator is actually attached to that particular code. Otherwise, a huge amount of unused metadata code would be generated, which not only affects file size, but it’d also have an impact on our application runtime.
+
+That’s why the metadata is generated for `AppComponent`, but not for `DataService`. Our AppComponent does have decorators, otherwhise it’s not a component.
+
+- Enforcing Metadata Generation
+
+use DI decorators `@Inject` decorator to ask for a dependency of a certain type. Problem solved. In fact, this is exactly what `@Inject` is for when not transpiling with TypeScript, attranspiled code, we see that all the needed metadata is generated.
+
+```js
+import {Inject} from 'angular2/core';
+import {Http} from 'angular2/http';
+class DataService {
+  constructor(@Inject(Http) http:Http) { }
+}
+```
+
+We can basically put any decorator on our code, as long as it’s either attached to the class declaration, or to the constructor parameter. In other words, we could remove `@Inject` again and use something else that we put on the class, because that will cause TypeScript to emit metadata for the constructor parameters too. Angular use `@Injectable` for Dart metadata generation. It doesn’t have any special meaning in TypeScript-land, however, it turns out to be a perfect fit for our use case.
+
+```js
+import {Injectable} from 'angular2/core';
+import {Http} from 'angular2/http';
+
+@Injectable()
+class DataService {
+  constructor(http:Http) { }
+}
+```
+
+Again, this will just enforce TypeScript to emit the needed metadata, the decorator itself doesn’t have any special meaning here.
+
+## Classes aren’t hoisted
+
+The JavaScript interpreter doesn’t hoist class declarations because it may lead to unsound behavior when we have a class that uses the `extend` keyword to inherit from something. In particular, when it inherits from an expression which is absolutely valid.
+
+The class must always be declared before it’s usage? we can use the `@Inject` annotation in conjunction with the `forwardRef` function as demonstrated here.
+
+```js
+import {Component, Inject, forwardRef} from 'angular2/core';
+import {bootstrap} from 'angular2/platform/browser';
+
+@Component({
+  selector: 'my-app',
+  template: '<h1>Favourite framework: {{ name }}</h1>'
+})
+class AppComponent {
+  name: String
+  constructor(@Inject(forwardRef(() => NameService)) nameService) {
+    this.name = nameService.getName();
+  }
+}
+
+class NameService {
+  getName () {
+    return "Angular 2";
+  }
+}
+bootstrap(AppComponent, [NameService]);
+```
+
+What `forwardRef` does is, it takes a function as a parameter that returns a class. And because this functions isn’t immediately called but instead is called after NameService is declared it is safe to return NameService from it. In other words: At the point where `() => NameService` runs NameService isn’t undefined anymore.
+
+The described scenario isn’t something that one has to deal with too often. This only becomes a problem when we want to have a class injected that we created in the same file. Most of the time we have one class per file and import the classes that we need at the very top of the file so we won’t actually suffer from the fact that classes aren’t hoisted.
+
+## Host and Visiblity
+
