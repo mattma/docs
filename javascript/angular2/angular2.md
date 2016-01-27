@@ -957,13 +957,37 @@ export class OtherSelectablePonyCmp {
 
 #### LifeCycle hooks
 
+A lifecycle hook is just an event that Angular fires off after some event occurs. We can "hook" on to these events with specifically named methods that work as event listeners. Each one of the Lifecycle hooks has an interface class you can implement with that hook. This will give you complier warnings and errors if you've forgotten to implement the hook, might give you auto-complete hints.
+
+- Typical call order
+
+Component Initialization:
+
+`onChanges -> onInit -> afterContentInit -> afterContentChecked -> afterViewInit -> afterViewChecked`
+
+Component input binding variable changed:
+
+`afterContentChecked -> afterViewChecked -> onChanges -> afterContentChecked -> afterViewChecked`
+
+(this may change based on how you're changing the variables and how you handle the hooks)
+
+Component is being destroyed:
+
+`afterContentChecked -> afterViewChecked -> onDestroy`
+
+In all cases, change out `DoCheck` for `onChanges` if you're using `DoCheck`.
+
+
+
 You may want your directive to react on a specific moment of its life.
 
 One thing is really important to understand though, and you’ll save quite some time if you do: the inputs of a component are not evaluated yet in its constructor.
 
 - Several phases are available, and have their own specificity:
 
-**ngOnChanges**
+**ngOnChanges** Interface Class: OnChanges
+
+Immediately on creation, then whenever an input or output binding value has changed. A note to remember, this won't fire when the input value is changed internally by the component, only when it is changed by the parent.
 
 will be the first to be called when the value of a bound property changes. It will receive a `changes` map, containing the current and previous values of the binding, wrapped in a `SimpleChange`. It will not be called if there is no change.
 
@@ -980,38 +1004,46 @@ export class OnChangesDirective implements OnChanges {
 }
 ```
 
-**ngOnInit**
+**ngOnInit** Interface Class: `OnInit`
 
-will be called only once after the first change (whereas ngOnChanges is called on every changes). It makes this phase perfect for initialization work, as the name suggests.
+Called on initialization. This only gets called **once** during the life of the component. Typically the second hook to be called (after the first `onChanges`), (whereas `ngOnChanges` is called on every changes.
 
-**ngOnDestroy**
+**ngOnDestroy** InterfaceClass: OnDestroy
 
-is called when the component is removed. Really useful to do some cleanup.
+called **Once** Immediately before the component is destroyed
 
 - Other phases are available, but are for more advanced use cases:
 
-**ngDoCheck**
+**ngDoCheck** Interface Class: DoCheck
 
-If present it will be called at each change detection cycle, overriding
-the default change detection algorithm, which looks for difference between every bound property value. That means that if at least one input has changed, by default the component is considered changed by the framework, and its children will be checked and rendered. But you can override it if you know that some inputs have no effect even if they have changed. That can be useful if you want to accelerate the change detection by just checking the bare minimum and not using the default algorithm, but usually you will not use this.
+This is called INSTEAD of ngOnChanges if you're using DoCheck. ngDoCheck is called whenever an input or output binding variable is set. You use DoCheck when you know better than Angular's default algorithm when something has changed. Perhaps this is because you can do it more efficiently, or maybe it's because you want to track changes differently than Angular does by default. This could warrant its down blog post on how to use it if people are interested.
 
-**ngAfterContentInit**
+If present it will be called at each change detection cycle, overriding the default change detection algorithm, which looks for difference between every bound property value. That means that if at least one input has changed, by default the component is considered changed by the framework, and its children will be checked and rendered. But you can override it if you know that some inputs have no effect even if they have changed. That can be useful if you want to accelerate the change detection by just checking the bare minimum and not using the default algorithm, but usually you will not use this.
+
+**ngAfterContentInit** Interface Class: AfterContentInit
 
 is called when all the bindings of the component have been checked for the first time.
 
-**ngAfterContentChecked**
+Called **Once** after the content of the component has been initialized. This is not the view itself, but the contents of the component on the logic side.
 
-is called when all the bindings of the component have been checked, even if
-they haven’t changed.
+**ngAfterContentChecked** Interface Class: AfterContentChecked
 
-**ngAfterViewInit**
+is called when all the bindings of the component have been checked, even if they haven’t changed.
+
+Called every time the content of the component has been checked. This could be when the input bindings, child components, or child directives are changed, added, or removed.
+
+**ngAfterViewInit** Interface Class: AfterViewInit
 
 is called when all the bindings of the children directives have been checked for the first time.
 
-**ngAfterViewChecked**
+Called **Once**, After the content is checked the first time, once the component view has been initialized. Use this when you need to do something to the view right away, but only once. This is similar to afterContentInit, but has the view available.
+
+**ngAfterViewChecked** Interface Class: AfterViewChecked
 
 is called when all the bindings of the children directives have been checked,
 even if they haven’t changed. It can be useful if your component is waiting for something coming from its child components. Like `ngAfterViewInit`, it only makes sense if we are in a component (a directive has no view).
+
+After anything changes the view. Typically this is caused by something like a data-bound variable changing, but that's not the only possibility. Use this when you need to do something whenever the view is changed. Maybe you need to validate something, or maybe you need to inject something based on a variable. The sky's the limit. Just make sure you don't get yourself into an infinite loop.
 
 ## Components
 
@@ -1269,7 +1301,7 @@ Observable.fromArray([1, 2, 3, 4, 5])
 
 ```js
 // `Observable.create` takes a function that will emit events on the observer given as parameter. Here it simply emits one event for the demonstration.
-let observable = Observable.create((observer) => observer.next('hello'));
+let observable$ /*indicate this is an observable*/ = Observable.create((observer) => observer.next('hello'));
 observable.subscribe((value) => console.log(value), error => console.log(error)), () => console.log('done')); // logs "hello". success, error, complete stage
 ```
 
