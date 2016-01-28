@@ -82,12 +82,53 @@ Components can have local state that can only be updated when their inputs chang
 
 we allow mutable state, but in a very scoped form
 
-
 ## Smart and dumb components
 
 **Smart component** does the heavy lifting (Fetching data, etc.) It contains little layout information and relies instead on dumb components.
 
 **Dumb components** receives its data from the smart component and displays it with little to no added logic. It makes them reusable and easier to test.
+
+## Modify Ajax search params and Build a search service with debounce
+
+```js
+import {URLSearchParams, Jsonp} from 'angular2/http';
+@Injectable()
+export class WikipediaService {
+  constructor(private jsonp: Jsonp) {}
+
+  search (term: string) {
+    var search = new URLSearchParams()
+    search.set('action', 'opensearch');
+    search.set('search', term);
+    search.set('format', 'json');
+    // Now that our WikipediaSerice returns an Observable instead of a Promise we simply need to replace then with subscribe in our App component.
+    return this.jsonp
+        .get('http://en.wikipedia.org/w/api.php?callback=JSONP_CALLBACK', { search }).map((response) => response.json()[1]);
+  }
+}
+```
+
+Behind the scenes term automatically exposes an Observable<string> as property valueChanges that we can subscribe to. Now that we have an Observable<string>, taming the user input is as easy as calling debounceTime(400) on our Observable. This will return a new Observable<string> that will only emit a new value when there haven’t been coming new values for 400ms.
+
+```js
+export class App {
+  items: Array<string>;
+  term = new Control();
+  constructor(private wikipediaService: WikipediaService) {
+    this.term.valueChanges
+     .debounceTime(400)
+     .distinctUntilChanged()
+     // search returns an Observable<Array<string>> we can simply use flatMap to project our Observable<string> into the desired Observable<Array<string>> by composing the Observables.
+     .switchMap(term => this.wikipediaService.search(term))
+     .subscribe(items => this.items = items);
+  }
+}
+```
+
+Don’t hit api multiple times. All we have to do to achieve the desired behavior is to call the `distinctUntilChanged` operator right after we called `debounceTime(400)`. Again, we will get back an Observable<string> but one that ignores values that are the same as the previous.
+
+`map` operator expects a function that takes a value `T` and returns a value `U`, or from an `Observable<T>` to an `Observable<U>`. However, our search method produces an `Observable<Array>` itself. The `flatMap` operator expects a function that takes a `T` and returns an `Observable<U>`, an `Observable<string>`, then call `flatMap` with a function that takes a string and returns an `Observable<Array<string>>`. `switchMap` operator work the same like `flatMap` but automatically unsubscribes from previous subscriptions as soon as the outer Observable emits new values.
+
 
 ## Multi Providers
 
@@ -108,7 +149,6 @@ class AppComponent {
     // dataService instanceof DataService === true
   }
 }
-```
 
 Setup can happen either in the bootstrapping process of our app, or in the component itself. Now, whenever we ask for a dependency of type DataService, Angular knows how to create an object for it.
 
@@ -250,3 +290,76 @@ The described scenario isn’t something that one has to deal with too often. Th
 
 ## Host and Visiblity
 
+
+## AsyncPipe
+
+use the `AsyncPipe` in our template and expose the `Observable<Array<string>> `instead of `Array<string>`. ex: `<li *ngFor="#item of items | async"></li>`
+
+
+## [Zone](https://github.com/angular/zone.js)
+
+Zone are basically an execution context for asynchronous operations, good for error handling and profiling. Zones can perform an operation - such as starting or stopping a timer, or saving a stack trace - each time that code enters or exits a zone. They can override methods within our code, or even associate data with individual zones.
+
+- Creating, forking and extending Zones
+
+Once include **zone.js**, access to the global `zone` object. `zone` comes with a method `run()` that takes a function which should be executed in that zone (run our code in a zone).
+
+```js
+function main() {
+  foo();
+  setTimeout(doSomething, 2000);
+  bar();
+}
+
+// function is in the zone, Zones can perform an operation each time our code enters or exits a zone.
+zone.run(main);
+
+// In order to set up these hooks, we need to fork the current zone. Forking a zone returns a new zone, which basically inherits from the “parent” zone. However, forking a zone also allows us to extend the returning zone’s behaviour.
+var myZone = zone.fork();
+myZone.run(main);
+```
+
+Zone hooks are defined using a **ZoneSpecification** that we can pass to `fork()`. We can take advantage of the following hooks:
+
+`onZoneCreated` - Runs when zone is forked
+`beforeTask` - Runs before a function called with `zone.run` is executed
+`afterTask` - Runs after a function in the zone runs
+`onError` - Runs when a function passed to zone.run will throw
+
+```js
+var myZoneSpec = {
+  beforeTask: function () {
+    console.log('Before task');
+  },
+  afterTask: function () {
+    console.log('After task');
+  }
+};
+
+var myZone = zone.fork(myZoneSpec);
+myZone.run(main);
+// Logs:
+// Before task
+// After task  // it trigger twice of before, after task because, below
+// Before task
+// Async task
+// After task
+```
+
+It trigger twice of before, after task **Monkey-patched Hooks**. It monkey-patched methods on the global scope. As soon as we embed zone.js in our site, pretty much all methods that cause asynchronous operations are monkey-patched to run in a new zone.
+
+For example, when we call `setTimeout()` we actually call `Zone.setTimeout()`, which in turn creates a new zone using `zone.fork()` in which the given handler is executed. And that’s why our hooks are executed as well, because the forked zone in which the handler will be executed, simply inherits from the parent zone.
+
+There are some other methods that zone.js overrides by default and provides us as hooks: `Zone.setInterval()`, `Zone.alert()`, `Zone.prompt()`, `Zone.requestAnimationFrame()`, `Zone.addEventListener()`, `Zone.removeEventListener()`
+
+Here is an [example](https://github.com/angular/zone.js/blob/master/example/profiling.html) of profiling zone.
+
+## Observable
+
+The Reactive Extensions (Rx) offer a broad range of operators that let us alter the behavior of Observables and create new Observables with the desired semantics. `Observables = Promises + Events (in a way!)`
+
+Observables work like the clever child of Events and Promises. Promises are first class objects that encapsulate the state of an asynchronous operation. But they are for singular operations only. A request is such an operation. You invoke a method, kicking off some async task and get a first class object that eventually will get you to the result of the operation (ignoring error handling for now).
+
+Events are for async operations that can continue to emit new values for an infinite duration. But Unfortunately they are traditionally not represented in a format that matches the criteria of a first class object. You can’t just pass an event of clicks around that skips every third click for instance.
+
+Well, with Observables you can. You get the power of first class objects but without the limitations of singularity.
