@@ -2189,6 +2189,22 @@ console.log(password.value); // logs "Cédric"
 
 These controls (describe above) can be grouped in a `ControlGroup` to represent a part of the form and have dedicated validation rules. The form itself is a group.
 
+Two main components: **Controls** and **Control Groups**. Controls have values and validation state, which is determined by an optional validation function.
+
+**A Control**
+
+It can be bound to an input element, and takes 3 arguments (all optional); a default value, a validator and a asynchronous validator.
+
+ex: `this.username = new Control('Default value', Validators.required, UsernameValidator.checkIfAvailable);`
+
+Which can be used in your HTML using the “ngControl” directive: `<input required type=”text” ngControl=”username” />`
+
+**A ControlGroup**
+
+Defines a part of a form, of fixed length, that can contain other controls. Multiple Controls can be used to create a Control Group. We use Angular’s “FormBuilder” Class to combine multiple Controls.
+
+The ControlGroup can be used in your HTML, bound to your form, using the ngFormModel directive. `<form [ngFormModel]=”form”>`
+
 A ControlGroup has the same properties than a Control, with a few differences:
 
 • `valid`: if all fields are valid, then the group is valid.
@@ -2215,9 +2231,7 @@ console.log(form.find('username')); // logs the Control
 
 #### FormBuilder
 
-With these basic elements we can build a form in our component. But instead of doing `new Control()` or `new ControlGroup()`, we will use a helper class, `FormBuilder`.
-
-The `FormBuilder` is a helper class, with a handful of methods to create controls and control groups. Let’s start simple, and create a small form with two controls, a username and a password.
+With these basic elements we can build a form in our component. But instead of doing `new Control()` or `new ControlGroup()`, we will use a helper class, `FormBuilder`. The `FormBuilder` has a handful of methods to create controls and control groups.
 
 ```js
 import {FormBuilder, ControlGroup}} from 'angular2/common';
@@ -2228,13 +2242,13 @@ import {FormBuilder, ControlGroup}} from 'angular2/common';
 export class RegisterFormCmp {
   userForm: ControlGroup;
 
-  constructor(fb: FormBuilder) {
+  constructor(private fb: FormBuilder) {
     // created a form with two controls
     // each control is created using the helper method `control()`
     // same effect as calling the `new Control('')` constructor
     // string represents the initial value you want to display in form.
     this.userForm = fb.group({
-      username: fb.control(''),
+      username: fb.control('', Validators.required),
       password: fb.control('')
     });
   }
@@ -2245,18 +2259,17 @@ export class RegisterFormCmp {
 }
 ```
 
-The form needs to be bound to our `userForm` object, thanks to the `ngFormModel` directive. Each input field is bound to a control, thanks to the `ngControl`
-directive. Each input receives the `ngControl` directive with a string literal representing the control it is bound to. If you specify a name that does not exist, you will have an error.
+The form needs to be bound to `userForm` object via `ngFormModel` directive. Each input field is bound to a control via `ngControl` directive. Each input receives the `ngControl` directive with a string literal representing the control it is bound to. If you specify a name that does not exist, you will have an error.
 
-```js
+**Note** If you have a single control in your form, and not a control group, you can use `ngFormControl` on your field instead of using `ngControl` and wrapping it in a `ngFormModel`.
+
+```html
 <form (ngSubmit)="register()" [ngFormModel]="userForm">
   <label>Username</label><input ngControl="username">
   <label>Password</label><input type="password" ngControl="password">
   <button type="submit">Register</button>
 </form>
 ```
-
-**Note** If you have a single control in your form, and not a control group, you can use `ngFormControl` on your field instead of using `ngControl` and wrapping it in a `ngFormModel`.
 
 ```js
 import {Component} from 'angular2/core';
@@ -2289,7 +2302,7 @@ export class RegisterFormCmp {
 }
 ```
 
-Template drive form. define a local variable, `userForm`, referencing the form. We can do this because the form directive exports an object representing the form, with the same methods as the `ControlGroup`.
+**Template drive form** define a local variable, `userForm`, referencing the form. We can do this because the form directive exports an object representing the form, with the same methods as the `ControlGroup`.
 
 ```html
 <form (ngSubmit)="register(userForm.value)" #userForm="ngForm">
@@ -2336,8 +2349,18 @@ export class RegisterFormCmp {
 }
 ```
 
-In template driven approach. add the `required` attribute to the inputs. `required` is a provided directive, and will automatically add the
-validator to this field. Same thing with `minlength` and `maxlength`.
+```html
+this.name = new Control('', Validators.minLength(4));
+
+<input required type=”text” ngControl=”name” />
+<div *ngIf=”name.dirty && !name.valid”>
+   <p *ngIf=”name.errors.minlength”>
+      Your name needs to be at least 4 characters.
+   </p>
+</div>
+```
+
+**Template driven form** add `required` attribute to the inputs. `required` is a provided directive, and will automatically add the validator to this field. Same thing with `minlength` and `maxlength`.
 
 ```html
 <form (ngSubmit)="register(userForm.value)" #userForm="ngForm">
@@ -2398,6 +2421,35 @@ export class RegisterFormCmp {
 <div *ngIf="birthdate.hasError('tooYoung')">way too young to be betting on pony races</div>
 ```
 
+**Note** returning null actually means the validation is valid.
+
+```js
+interface ValidationResult {
+ [key:string]:boolean;
+}
+class UsernameValidator {
+ static startsWithNumber(control: Control): ValidationResult {
+   if ( control.value !=”” && !isNaN(control.value.charAt(0)) ){
+     return { “startsWithNumber”: true };
+   }
+   return null;
+ }
+}
+```
+
+Now we can use this Validator in our Control
+
+`this.name = new Control('', UsernameValidator.startsWithNumber);`
+
+```html
+<input required type=”text” ngControl=”name” />
+<div *ngIf=”name.dirty && !name.valid”>
+   <p *ngIf=”name.errors.startsWithNumber”>
+      Your name can't start with a number
+   </p>
+</div>
+```
+
 - Using a validator in a template-driven form.
 
 To do this, we are going to build a directive that we will apply on the input. Create this new directive. We start by creating a class, with the `@Directive` decorator, and a selector on an attribute that we will name `is-old-enough`. The class has a method `validate`.
@@ -2428,6 +2480,53 @@ isOldEnough #birthdate="ngForm">
 betting on pony races</div>
 ```
 
+- Asynchronous form validation
+
+If we want to check something using a Promise (such as fetching data from the server) we can use an asynchronous validator. It works quite similar to the default Validator, only this time we want to return a promise.
+
+```js
+class UsernameValidator {
+ static usernameTaken(control: Control): Promise<ValidationResult> {
+   let q = new Promise((resolve, reject) => {
+     setTimeout(() => {
+       if (control.value === ‘David’) {
+         resolve({“usernameTaken”: true});
+       } else {
+         resolve(null);
+       }
+     }, 1000)
+   });
+
+   return q;
+ }
+}
+```
+
+This time we want to use the third parameter of the Control to apply the validator.
+
+`this.name = new Control('', UsernameValidator.startsWithNumber, UsernameValidator.usernameTaken);`
+
+In our HTML we wan’t to show 2 different states, when the Promise is pending and the validation message if needed.
+
+```html
+<input required type=”text” ngControl=”name” />
+<p *ngIf=”name.pending”>
+   Fetching data from the server...
+</p>
+<div *ngIf=”name.dirty && !name.valid && !name.pending”>
+   <p *ngIf=”name.errors.startsWithNumber”>
+      Your name can't start with a number
+   </p>
+   <p *ngIf=”name.errors.usernameTaken”>
+      This username is already taken
+   </p>
+</div>
+```
+
+- Combining multiple validators
+
+Angular 2 provides two methods to combine Validators. `Validators.compose` and `Validators.composeAsync`. Both take an Array of validators.
+
 #### Errors and submission
 
 use the `ControlGroup` variable: `userForm`. This variable gives us a complete view of the form and field states and errors. link `disabled` to the `valid` property of `userForm`. Now we can only submit when all controls are valid.
@@ -2437,19 +2536,19 @@ use the `ControlGroup` variable: `userForm`. This variable gives us a complete v
   <label>Username</label><input ngControl="username">
   <!-- The errors are now displayed if the fields are empty, use `.dirty` for initial empty value state -->
   <!-- `username.dirty && username.hasError('required')` when `this.username` is defined on the `constructor`.  ex: `this.username = fb.control('', Validators.required);` see full example above-->
-  <div *ngIf="userForm.find('username').dirty &&
-  userForm.find('username').hasError('required')">Username is required
-</div>
+  <div *ngIf="userForm.find('username').dirty && userForm.find('username').hasError('required')">
+    Username is required
+  </div>
   <label>Password</label><input type="password" ngControl="password">
-  <div *ngIf="userForm.find('password').dirty &&
-  userForm.find('password').hasError('required')"> Password is required
+  <div *ngIf="userForm.find('password').dirty && userForm.find('password').hasError('required')">
+    Password is required
   </div>
   <!-- disable a button using the `disabled` property -->
   <button type="submit" [disabled]="!userForm.valid">Register</button>
 </form>
 ```
 
-In template driven form,
+**Template driven form**
 
 ```html
 <form (ngSubmit)="register(userForm.value)" #userForm="ngForm">
@@ -2491,7 +2590,9 @@ export class DisplayErrorCmp implements OnInit {
 
 // usage
 <label>Username</label><input ngControl="username">
-<display-error control="username" error="required">Username is required</displayerror>
+<display-error control="username" error="required">
+ Username is required
+</display-error>
 ```
 
 #### Form Styles
