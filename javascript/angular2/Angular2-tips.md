@@ -363,3 +363,132 @@ Observables work like the clever child of Events and Promises. Promises are firs
 Events are for async operations that can continue to emit new values for an infinite duration. But Unfortunately they are traditionally not represented in a format that matches the criteria of a first class object. You can’t just pass an event of clicks around that skips every third click for instance.
 
 Well, with Observables you can. You get the power of first class objects but without the limitations of singularity.
+
+
+## Host and Visibility
+
+Relationship between host and child injectors, and how the visibility of dependencies are handled. Host and visibility are both features in Angular 2’s dependency injection system, that are very specific to Angular.
+
+When injectors are created, there are providers passed to them so we can ask for specific dependencies.
+
+```js
+var injector = Injector.resolveAndCreate([
+  provide(Car, {useClass: Car}),
+  provide(Engine, {useClass: Engine})
+]);
+var childInjector = injector.resolveAndCreateChild();
+var grandChildInjector = childInjector.resolveAndCreateChild([
+  provide(Car, {useClass: Convertible})
+]);
+```
+
+if we ask grandChild for a dependency of type `Car` we’ll get back an instance of type `Convertible`, because it defines it’s own provider for that type. However, if we ask for a dependency of type `Engine`, we simply get an instance of the class `Engine`, because grandChild will ask it’s parent injector (recursively) until an injector has providers defined for that type.
+
+A component has DOM tree. If we configure Angular2 accordingly, this DOM tree can be Shadow DOM. That’s also why we have an `<ng-content>`` tag. It’s Angular’s implementation of **content insertion points**, which is another Shadow DOM feature.
+
+Even though we don’t use Shadow DOM, a component still comes with it’s own view that is kind of hidden behind the component itself. This is what makes every component in Angular a **host** of a view. In fact, when speaking about Shadow DOM, we always need a host element to create a shadow dom for it.
+
+When an child injector looks up a dependency on it’s parent injector in case it doesn’t have providers for the requested type. The component’s injector (parent) will lookup up a dependency even across boundaries.
+
+- Restricting dependency lookup
+
+When ask for a dependency and make sure that the lookup ends with the current component’s host, we can use the `@Host` decorator.
+
+```js
+// ensured that PlayerService instance is always instatiated by our component’s host
+@Component({ ... })
+class PlayButton {
+  constructor(@Host() playerService: PlayerService) { }
+}
+```
+
+`viewProviders` define injector providers that are only available for a component’s view.
+
+```js
+@Component({
+  selector: 'video-player',
+  providers: [
+    PlayerService,
+    provide(VideoService, {useClass: SpecificVideoService})
+  ]
+})
+class VideoPlayer { }
+```
+
+Child component of `VideoPlayer` would get an instance of `SpecificVideoService` but it needs an instance of `VideoService`. However, due to the lookup that happens in the injector tree, the provider defined in <video-player> is the next one that is available. How can we get around that? This is exactly where `viewProviders` come in. With viewProviders we can tell the DI system very specifically, which providers are available to which child injectors (Light DOM or Shadow DOM).
+
+```js
+@Component({
+  selector: 'video-player',
+  providers: [
+    PlayerService
+  ],
+  viewProviders: [
+    provide(VideoService, {useClass: SpecificVideoService})
+  ]
+})
+class VideoPlayer { }
+```
+
+Now, whenever a component of <video-player>’s view asks for something of type `VideoService`, it’ll get an instance of `SpecificVideoService` as expected. Other child components from the outside world that ask for the same type however, won’t see this provider and will continue with the lookup in the injector tree. Which means <custom-video> now gets an expected instance from another parent injector without even knowing that <video-player> actually introduces its own provider.
+
+**View Providers are also only available in components**, not in directives. That’s simply because a directive doesn’t have its own view.
+
+
+## Property Binding && Event Binding
+
+The APIs of a DOM element are:
+
+**Attributes** - Attributes in HTML provide elements with data. They are the only way in plain HTML to put values into an element. However, the type of an attribute value in HTML is always String, which is not always what we want especially when building applications with frameworks like Angular.
+
+**Properties** - Properties are simply the properties of a DOM object. E.g. if we query a DOM element with `document.querySelector()`, we get a DOM object back which simply has its own properties and methods. Those properties are no special in any way, they behave like any other object properties in JavaScript. That also means we can assign any kind of value to a property, not just strings.
+
+**Methods** - Methods are the functions on a DOM object that we can call and execute in JavaScript. `setAttribute()` for example is such a method.
+
+**Events** - The bread and butter when it comes to notifying subscribers that something happened. Like click, focus or input. DOM elements can also fire their own custom events.
+
+Angular 2 always binds to properties rather than attributes. Every DOM element has properties, regardless of being a native element or a Web Component. In order to tell Angular that we want to bind to a property, we use the brackets syntax.
+
+brackets syntax is the shorthand format for `<ANY bind-{PROPERTY_NAME}="{EXPRESSION}"></ANY>`
+
+**Event binding**
+
+parethesis syntax where we can bind to any event. ex: `<date-picker (dateChanged)="statement()"></date-picker>` The parentheses simply tell Angular that the expression inside the symbols is an event name that it needs to add an event listener for. `statement()` is simply the statement expression that gets executed whenever such an event is fired on that element.
+
+**Event Bubbling**
+
+When binding to events in Angular 2, events are caught on the same element as well as from events that bubble up from child elements.
+
+
+parethesis syntax is the shorthand format for `<ANY on-{EVENT_NAME}="{STATEMENT}"></ANY>`
+
+**Two-way Data Binding**
+
+**Angular 2 doesn’t come with two-way data binding by default**. `ng-model` in Angular 2 gives us two-way data binding, even though under the hood, it simply uses a combination of property and event binding. ex:
+
+```js
+<input [value]="name" (input)="name = $event.target.value">
+<p>Hello {{name}}</p>
+```
+
+`ngModel` directive unifying the property and event binding, and also the extraction of the target’s value. Works like code above:
+
+```js
+<input [ngModel]="name" (ngModelChange)="name = $event">
+<p>Hello {{name}}</p>
+
+// Event short hand
+<input [(ngModel)]="name">
+```
+
+## Shadow DOM && View Encapsulation
+
+Shadow DOM is part of the Web Components standard and enables DOM tree and style encapsulation. Shadow DOM allows us to hide DOM logic behind other elements. It enables us to apply scoped styles to elements without them bleeding out to the outer world.
+
+Whenever we create a component, Angular puts it’s template into a `shadowRoot`, which is the Shadow DOM of that particular component. Doing that, we get DOM tree and style encapsulation for free, to cross broswers, Angular 2 doesn’t use native Shadow DOM by default, it uses an emulation. To be technically correct, it also doesn’t create a `shadowRoot` for our components in case no native Shadow DOM is used.
+
+- View Encapsulation Types
+
+**ViewEncapsulation.None** - No Shadow DOM at all. Therefore, also no style encapsulation.
+**ViewEncapsulation.Emulated** - No Shadow DOM but style encapsulation emulation.
+**ViewEncapsulation.Native** - Native Shadow DOM with all it’s goodness.
