@@ -53,7 +53,7 @@ format your code based on preferred style
 
 search everywhere. find anything from IDE commands to files, classes, function, actions, preferences, declarations and more.
 
-- ctrl + shift + up/down
+- cmd + shift + up/down
 
 move the line up and down by one line
 
@@ -236,7 +236,9 @@ extract the current variable into its different location
 
 extract the current parameter into its different location
 
-Holding down CTRL when hovering over variables or methods will give you their full names or locations of declaration, while CTRL+Clicking on a variable or method, or pressing CTRL+B when on a method’s call or on a variable will take you directly to where it’s defined:
+Holding down CTRL when hovering over variables or methods will give you their full names or locations of declaration,
+cmd + click  on a variable or method, or pressing
+cmd + b   when on a method’s call or on a variable will take you directly to where it’s defined
 
 
 

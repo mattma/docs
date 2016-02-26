@@ -79,3 +79,28 @@ streamB.subscribe(b => console.log(b));  // Log: 30, 40
 // --------u------------->
 //     startWith(n)
 // n-------u------------->
+
+
+```js
+var source = Rx.Observable.create(function (observer) {
+  // Yield a single value and complete
+  observer.next(42);
+  observer.complete();
+
+  // Any cleanup logic might go here
+  return function () {
+    console.log('disposed');
+  }
+});
+
+var subscription = source.subscribe(
+  function (x) { console.log('onNext: %s', x); },
+  function (e) { console.log('onError: %s', e); },
+  function () { console.log('onCompleted'); });
+
+// => onNext: 42
+// => onCompleted
+
+subscription.unsubscribe();
+// => disposed
+```

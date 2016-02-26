@@ -240,3 +240,34 @@ it('should use reviver to generate Map() instead of List() from a plain JS array
   expect(myMap.getIn([2, 0])).to.equal('todo 3');
 });
 ```
+
+## Convertion
+
+`toList()`  Convert Map to List. Maps keys are discarded.
+`toMap()`   Convert List to Map. Convert keys ascend numerically.
+
+```js
+const list = Immutable.List.of('First', 'Second');
+const convertedMap = list.toMap();
+expect(convertedMap.next().value).to.equal(0);  // true
+expect(convertedMap.next().value).to.equal(1);  // true
+expect(convertedMap.last()).to.equal('Second');  // true
+```
+
+- Convert to Javascript Native Array. Keys are discarded.
+
+```js
+const map = Immutable.Map({k1: "First", k2: "Second", k3: {k4: "Nested"}});
+const arr = map.toArray();
+expect(arr[0]).to.equal("First"); // true
+expect(arr[2].k4).to.equal("Nested"); // true
+```
+
+- Convert to Javascript JSON.
+
+```js
+const map = Immutable.Map({k1: "First", k2: "Second", k3: {k4: "Nested"}});
+const json = map.toJSON();
+expect(json.k1).to.equal("First"); // true
+expect(json.k3.k4).to.equal("Nested"); // true
+```

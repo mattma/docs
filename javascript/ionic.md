@@ -1,6 +1,17 @@
 ## Ionic CLI
 
 ```bash
+# ionic working solution CLI
+ionic start newApp
+cd newApp
+
+ionic platform remove iOS
+ionic hooks add
+ionic platform add iOS
+ionic build ios
+```
+
+```bash
 # installing ionic CLI tool
 npm install -g ionic
 
