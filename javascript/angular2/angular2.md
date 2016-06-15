@@ -8,15 +8,15 @@ Pipe is a reusable transformation used to format input to output
 
 # Angular2
 
-The fundamental building blocks of an Angular app are directives. Directives with a view are called components, and these account for the majority of Directives in most apps. Angular components are largely interchangeable with Web Components, so they work well with other frameworks.
+The fundamental building blocks of an Angular app are directives. Directives with a view are called components. Angular components are largely interchangeable with Web Components, so they work well with other frameworks.
 
 Angular components also have input and output properties to allow interaction with other components. For example, a component could set up its view based on the configuration it receives from its parent component, and then be notified to change its appearance by an event it receives from a child or sibling component.
 
-Angular is built with significant support for dependency injection (so a component may receive the necessary singleton services) and routing.
+Angular is built with dependency injection (so a component may receive the necessary singleton services) and routing. Angular 2 DI happens at the constructor.
+
+Components also have lifecycle hooks that we can use to sequence units of work. ex: `ngOnInit` hook.
 
 the new component router in Angular 2 is that each route maps to a component.
-
-Dependency injection within Angular 2 happens at the constructor and so we are going to add one to our class and inject the StateService. Components also have lifecycle hooks that we can use to sequence units of work. ex: `ngOnInit` hook.
 
 - Angular includes
 
@@ -79,13 +79,13 @@ RxJS gives us tools for working with Observables, which emit streams of data. An
 Components are the new version of directives. A basic Component has two parts:
 1. A Component annotation  2. A Component definition class
 
-Think of annotations as metadata added to your code. When we use @Component on the `HelloWorld` class, we are “decorating” the `HelloWorld` as a Component.
+Think of annotations as metadata added to your code. When we use `@Component` on the `HelloWorld` class, we are “decorating” the `HelloWorld` as a Component.
 
 ## Router
 
 map a URL to a state of the application. The router in Angular 2 has a simple goal: allowing to have meaningful URLs reflecting the state of our app, and for each URL to know which component should be initialized and inserted in the page.
 
-To use the router. It is an optional module, that is thus not included in the core framework. So we have to add the `ROUTER_PROVIDERS` to our injector, usually via the bootstrap method, We also need to tell the router which component is the main one, by binding `ROUTER_PRIMARY_COMPONENT`.
+Router is an optional module, that is thus not included in the core framework. So we have to add the `ROUTER_PROVIDERS` to our injector, usually via the bootstrap method, We also need to tell the router which component is the main one, by binding `ROUTER_PRIMARY_COMPONENT`.
 
 ```js
 bootstrap(PonyRacerApp, [
@@ -128,7 +128,7 @@ The `RouterLink` directive also offers a few goodies, like the CSS class `router
 
 ## http
 
-use the classes from the `angular2/http` module. `Http` module allows to mock your backend server and return fake responses. `Http` module heavily uses the reactive programming paradigm using `Observables`, which is different from the promise based approach in Angular 1.x.
+use the classes from the `@angular/http` module. `Http` module allows to mock your backend server and return fake responses. `Http` module heavily uses the reactive programming paradigm using `Observables`, which is different from the promise based approach in Angular 1.x.
 
 #### Setup
 
@@ -145,7 +145,7 @@ To access `Response` from `http` request:
 - `response.json()` expect a JSON object, the parsing being done for you
 
 ```js
-import {Http, Response} from 'angular2/http'
+import {Http, Response} from '@angular/http'
 @Component({
   selector: 'some-component'
 })
@@ -177,45 +177,37 @@ Post ex: `http.post(`${baseUrl}/api/races`, newRace)`
 
 #### Transforming data
 
-As we are getting an `Observable` object as a response, you can easily transform the data. import the `map` operator for RxJS, angular does not import RxJS library, you have to explicitly import yourself.
+As we are getting an `Observable` object as a response, you can easily transform the data. Note, import map operator explicitly.
 
 ```js
 import 'rxjs/add/operator/map';
 ...
 http.get(`${baseUrl}/api/races`)
-  // extract json body
-  .map(res => res.json())
+  .map(res => res.json()) // extract json body
   // transform [races] => [names]
   .map((races: Array<any>) => races.map(race => race.name))
-  .subscribe(names => {
-  console.log(names);
   // logs the array of the race's names
-});
+  .subscribe(names => console.log(names));
 ```
 
-This kind of work will usually be done in a dedicated service. I tend to create a service where all the job is done. Then, my component just needs to subscribe to my service method, without knowing what’s going on under the hood.
+This kind of work will usually be done in a dedicated service where all the job is done. Then, my component just needs to subscribe to my service method, without knowing what’s going on under the hood.
 
 ```js
 raceService.list()
-  // if the request fails, retry 3 times
-  .retry(3)
-  // transform [races] => [names]
+  .retry(3)   // if the request fails, retry 3 times
   .map(races => races.map(race => race.name))
-  // logs the array of the race's names
   .subscribe(names =>  console.log(names));
 ```
 
 #### Advanced options
 
-Tune your requests more finely. Every method takes a `RequestOptions` object as an optional parameter, where you can configure your request. A few options are really useful and you can override everything in the request. Some of these options have the exact same values as the ones offered by the [Fetch](https://github.com/github/fetch) API. The url option is pretty obvious and will override the URL of the request. The method option is the HTTP verb to use, like `RequestMethod.Get`. If you want to build a request manually,
-you can write:
+Tune your requests more finely. Every method takes a `RequestOptions` object as an optional parameter, where you can configure your request. A few options are really useful and you can override everything in the request. Some of these options have the exact same values as the ones offered by the [Fetch](https://github.com/github/fetch) API. The url option is pretty obvious and will override the URL of the request. The method option is the HTTP verb to use, like `RequestMethod.Get`. If you want to build a request manually, you can write:
 
 ```js
 let options = new RequestOptions({method: RequestMethod.Get});
 http.request(`${baseUrl}/api/races/3`, options)
-  .subscribe(response => {
   // will get the race with id 3
-  });
+  .subscribe(response => { ... });
 ```
 
 `search` represents the URL params to add to the URL. You specify them using the `URLSearchParams` class, and the complete URL will be constructed for you.
@@ -225,10 +217,8 @@ let searchParams = new URLSearchParams();
 searchParams.set('sort', 'ascending');
 let options = new RequestOptions({search: searchParams});
 http.get(`${baseUrl}/api/races`, options)
-  .subscribe(response => {
-    // will return the races sorted
-    races = response.json();
-  });
+  // will return the races sorted
+  .subscribe(response => races = response.json());
 ```
 
 `headers` option is often useful to add a few custom headers to your request. It happens to be necessary for some authentication techniques like JSON Web Token for example:
@@ -237,10 +227,8 @@ http.get(`${baseUrl}/api/races`, options)
 let headers = new Headers();
 headers.append('Authorization', `Bearer ${token}`);
 http.get(`${baseUrl}/api/races`, new RequestOptions({headers}))
-  .subscribe(response => {
-    // will return the races visible for the authenticated user
-    races = response.json();
-  });
+  // will return the races visible for the authenticated user
+  .subscribe(response => races = response.json());
 ```
 
 #### Jsonp
@@ -254,14 +242,10 @@ In addition to the `Http` service, the Http module also provides a `Jsonp`servic
 ```js
 // fetching all the public repos from our Github organization using JSONP
 jsonp.get('https://api.github.com/orgs/Ninja-Squad/repos?callback=JSONP_CALLBACK')
-  // extract json
-  .map(res => res.json())
-  // extract data
-  .map(res => res.data)
-  .subscribe(response => {
-    // will return the public repos of Ninja-Squad
-    repos = response;
-  });
+  .map(res => res.json())  // extract json
+  .map(res => res.data)      // extract data
+  // will return the public repos of Ninja-Squad
+  .subscribe(response => repos = response);
 ```
 
 #### Tests
@@ -320,7 +304,8 @@ this.http.get('./customer.json').map((res: Response) => {
      this.customer = res.json();
      return this.customer;
   })
-  .flatMap((customer) => this.http.get(customer.contractUrl)).map((res: Response) => res.json())
+  .flatMap((customer) => this.http.get(customer.contractUrl))
+  .map((res: Response) => res.json())
   .subscribe(res => this.contract = res);
 ```
 
@@ -341,14 +326,17 @@ Observable.forkJoin(
 Observables offer built in support for canceling subscriptions. Cancellation can be beneficial if you inadvertently made an http request and want to cancel the processing of the response.
 
 ```js
-getCapitol(country){
-    if(this.pendingRequest){
-      // calling unsubscribe() on an active Observable effectively cancels the processing of the http response.
-        this.pendingRequest.unsubscribe();
-    }
-    this.pendingRequest = this.http.get('./country-info/' + country)
-                          .map((res: Response) => res.json())
-                          .subscribe(res => this.capitol = res.capitol);
+getCapitol (country) {
+  if (this.pendingRequest) {
+    // calling unsubscribe() on an active Observable
+    // effectively cancels the processing of the http response.
+    this.pendingRequest.unsubscribe();
+  }
+
+  this.pendingRequest =
+    this.http.get('./country-info/' + country)
+      .map((res: Response) => res.json())
+      .subscribe(res => this.capitol = res.capitol);
 }
 ```
 
@@ -359,11 +347,13 @@ the syntax seems a bit more verbose than it needs to be. It also feels a bit unn
 ```js
 var headers = new Headers();
 headers.append('Content-Type', 'application/json');
-this.http.post('http://www.syntaxsuccess.com/poc-post/',
-                       JSON.stringify({firstName:'Joe',lastName:'Smith'}),
-                       {headers:headers})
-    .map((res: Response) => res.json())
-    .subscribe((res:Person) => this.postResponse = res);
+this.http.post(
+  'http://www.syntaxsuccess.com/poc-post/',
+  JSON.stringify({firstName:'Joe',lastName:'Smith'}),
+  {headers:headers}
+)
+  .map((res: Response) => res.json())
+  .subscribe((res:Person) => this.postResponse = res);
 ```
 
 #### Promises
@@ -372,36 +362,35 @@ Angular 2.0 has moved in the direction of Observables but it's still possible to
 
 ```js
 this.http.get('./friends.json').toPromise()
-.then((res: Response) => {
-    this.friendsAsPromise.friends = res.json().friends;
-});
+  .then((res: Response) => this.friendsAsPromise.friends = res.json().friends);
 ```
 
 
 ## Change Detection
 
-Angular 2 opens this channel by providing a change detection system that understands the type of object being used, it follow a tree structure to detect changes. This makes the system predictable and it reduces the time taken to detect changes.
+Angular 2 change detection system that understands the type of object being used, it follow a tree structure to detect changes. This makes the system predictable and it reduces the time taken to detect changes.
 
-If plain JavaScript objects are used to bind data on the views, Angular has to go through each node and check for changes on the nodes, on each browser event. Though it sounds similar to the technique in Angular 1, the checks happen very fast as the system has to parse a tree in a known order.
+If plain JavaScript objects are used to bind data on the views, Angular has to go through each node and check for changes on the nodes, on each browser event. The checks happen very fast as the system has to parse a tree in a known order.
 
-If we use Observables or, Immutable objects instead of the plain mutable objects, the framework understands them and provides better change detection. Let’s delve further into the details:
+If we use Observables or, Immutable objects instead of the plain mutable objects, the framework understands them and provides better change detection.
 
-· Immutable Objects: As the name itself says, an immutable object cannot be modified as it is created. A change made in the object re-creates the object itself. The re-creation kicks in an event to notify user about the change. So the bindings under the subtree using immutable objects, are not parsed until such an event occurs. When the event is raised, the subtree is checked and the changes are applied on it. The checks will not happen on browser events following this check, unless the event is raised again.
+  Immutable Objects: an immutable object cannot be modified as it is created. A change made in the object re-creates the object itself. The re-creation kicks in an event to notify user about the change. So the bindings under the subtree using immutable objects, are not parsed until such an event occurs. When the event is raised, the subtree is checked and the changes are applied on it. The checks will not happen on browser events following this check, unless the event is raised again.
 
-· Observable Objects: The observable objects implement a reactive mechanism of notifying the changes. They emit events when the object changes. Subscribers to these events get notified whenever the object changes and they can use the new value to update UI or, perform the next action upon receiving the notification.
-
-Angular 2 understands observable objects. When an object sends a change notification, the framework checks for changes in the subtree under the node containing the component depending on the changed object. This subtree won’t be checked for any changes until another change event on the same object is raised.
+  Observable Objects: an observable objects implement a reactive mechanism of notifying the changes. They emit events when the object changes. Subscribers to these events get notified whenever the object changes and they can use the new value to update UI or, perform the next action upon receiving the notification. Angular 2 understands observable objects. When an object sends a change notification, the framework checks for changes in the subtree under the node containing the component depending on the changed object. This subtree won’t be checked for any changes until another change event on the same object is raised.
 
 We need to tell the framework that the component uses one of these objects. It can be done using a property in the component annotation.
 
 ```js
+import {Input} from '@angular/core';
 @Component({
-  selector:'my-component',
-  changeDetection: ON_PUSH
+  selector: 'my-component',
+  changeDetection: ChangeDectionStrategy.ON_PUSH
 })
+class SomeComp {
+  // declares a data-bound property so that it is auto updated during change detection
+  @Input() value: type;
+}
 ```
-
-`@Input` (`import {Input} from 'angular2/core';`) declares a data-bound property so that it is automatically updated during change detection.
 
 ## Dependency injection
 
