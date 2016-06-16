@@ -149,6 +149,7 @@ class AppComponent {
     // dataService instanceof DataService === true
   }
 }
+```
 
 Setup can happen either in the bootstrapping process of our app, or in the component itself. Now, whenever we ask for a dependency of type DataService, Angular knows how to create an object for it.
 
